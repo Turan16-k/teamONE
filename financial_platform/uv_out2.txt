@@ -1,0 +1,52 @@
+2026-05-02 23:15:09,317 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-02 23:15:09,322 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
+2026-05-02 23:15:09,323 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,324 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("companies")
+2026-05-02 23:15:09,325 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,326 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("financial_reports")
+2026-05-02 23:15:09,327 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,328 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("subscription_packages")
+2026-05-02 23:15:09,329 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,330 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("user_subscriptions")
+2026-05-02 23:15:09,331 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,331 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("purchase_requests")
+2026-05-02 23:15:09,332 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,332 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("audit_logs")
+2026-05-02 23:15:09,333 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,333 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("ai_operation_logs")
+2026-05-02 23:15:09,334 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,334 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("notifications")
+2026-05-02 23:15:09,334 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-02 23:15:09,335 INFO sqlalchemy.engine.Engine COMMIT
+2026-05-02 23:15:21,093 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-02 23:15:21,103 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.email = ? AND users.is_active = 1
+ LIMIT ? OFFSET ?
+2026-05-02 23:15:21,105 INFO sqlalchemy.engine.Engine [generated in 0.00210s] ('admin@platform.com', 1, 0)
+2026-05-02 23:15:21,710 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values, new_values, ip_address, user_agent, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-02 23:15:21,715 INFO sqlalchemy.engine.Engine [generated in 0.00505s] (1, 'LOGIN', 'User', 1, 'null', 'null', '127.0.0.1', None, '2026-05-02 20:15:21.706473')
+2026-05-02 23:15:21,721 INFO sqlalchemy.engine.Engine COMMIT
+2026-05-02 23:15:21,733 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-02 23:15:21,737 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = ?
+2026-05-02 23:15:21,739 INFO sqlalchemy.engine.Engine [generated in 0.00167s] (1,)
+2026-05-02 23:15:21,749 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:65472 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+2026-05-02 23:15:23,832 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-02 23:15:23,840 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = ? AND users.is_active = 1
+ LIMIT ? OFFSET ?
+2026-05-02 23:15:23,842 INFO sqlalchemy.engine.Engine [generated in 0.00170s] (1, 1, 0)
+2026-05-02 23:15:23,857 INFO sqlalchemy.engine.Engine SELECT count(*) AS count_1 
+FROM (SELECT companies.id AS companies_id, companies.name AS companies_name, companies.tax_id AS companies_tax_id, companies.sector AS companies_sector, companies.description AS companies_description, companies.owner_id AS companies_owner_id, companies.created_at AS companies_created_at, companies.updated_at AS companies_updated_at 
+FROM companies ORDER BY companies.created_at DESC) AS anon_1
+2026-05-02 23:15:23,860 INFO sqlalchemy.engine.Engine [generated in 0.00364s] ()
+2026-05-02 23:15:23,864 INFO sqlalchemy.engine.Engine SELECT companies.id AS companies_id, companies.name AS companies_name, companies.tax_id AS companies_tax_id, companies.sector AS companies_sector, companies.description AS companies_description, companies.owner_id AS companies_owner_id, companies.created_at AS companies_created_at, companies.updated_at AS companies_updated_at 
+FROM companies ORDER BY companies.created_at DESC
+ LIMIT ? OFFSET ?
+2026-05-02 23:15:23,864 INFO sqlalchemy.engine.Engine [generated in 0.00115s] (20, 0)
+2026-05-02 23:15:23,869 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:53970 - "GET /api/v1/companies HTTP/1.1" 500 Internal Server Error

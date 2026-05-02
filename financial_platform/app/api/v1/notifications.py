@@ -5,7 +5,7 @@ from app.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.notification import Notification
-from app.utils.pagination import PaginationParams, paginate
+from app.utils.pagination import PaginationParams, paginate, orm_to_dict
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -21,8 +21,10 @@ def list_notifications(
     query = db.query(Notification).filter(Notification.user_id == current_user.id)
     if unread_only:
         query = query.filter(Notification.is_read == False)
-    return paginate(query.order_by(Notification.created_at.desc()),
-                    PaginationParams(page=page, page_size=page_size))
+    result = paginate(query.order_by(Notification.created_at.desc()),
+                      PaginationParams(page=page, page_size=page_size))
+    result["items"] = [orm_to_dict(n) for n in result["items"]]
+    return result
 
 
 @router.post("/{notification_id}/read", status_code=204)

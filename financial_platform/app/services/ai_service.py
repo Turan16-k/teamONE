@@ -115,6 +115,7 @@ Aşağıdaki analizleri JSON formatında üret (sadece JSON):
     "assessment": "<etkinlik değerlendirmesi>"
   }},
   "overall_assessment": "<genel değerlendirme>",
+  "financial_score": <1-100 arası toplam sağlık skoru int>,
   "risk_indicators": ["<risk 1>", "<risk 2>"],
   "positive_indicators": ["<güçlü yön 1>", "<güçlü yön 2>"]
 }}

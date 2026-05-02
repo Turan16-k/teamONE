@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -18,6 +18,8 @@ class CompanyUpdate(BaseModel):
 
 
 class CompanyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     tax_id: Optional[str]
@@ -26,6 +28,3 @@ class CompanyResponse(BaseModel):
     owner_id: int
     created_at: datetime
     updated_at: Optional[datetime]
-
-    class Config:
-        from_attributes = True

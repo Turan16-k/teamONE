@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import Optional
 
 from app.database import get_db
 from app.api.deps import get_current_active_user
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/companies", tags=["Companies"])
 def list_companies(
     page: int = 1,
     page_size: int = 20,
+    search: Optional[str] = Query(None, description="Şirket adı veya vergi numarasında arama"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -26,11 +27,18 @@ def list_companies(
     params = PaginationParams(page=page, page_size=page_size)
     query = db.query(Company)
 
-    # Admin tümünü görür, user sadece kendisini — N+1 önleme: join yok, tek query
     if current_user.role != UserRole.ADMIN:
         query = query.filter(Company.owner_id == current_user.id)
 
-    return paginate(query.order_by(Company.created_at.desc()), params)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            Company.name.ilike(like) | Company.tax_id.ilike(like)
+        )
+
+    result = paginate(query.order_by(Company.created_at.desc()), params)
+    result["items"] = [CompanyResponse.model_validate(c) for c in result["items"]]
+    return result
 
 
 @router.post("", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)

@@ -26,8 +26,12 @@ class User(Base):
 
     companies = relationship("Company", back_populates="owner", lazy="select")
     subscription = relationship("UserSubscription", back_populates="user", uselist=False, lazy="select")
-    purchase_requests = relationship("PurchaseRequest", back_populates="user", lazy="select")
+    purchase_requests = relationship(
+        "PurchaseRequest", back_populates="user",
+        foreign_keys="PurchaseRequest.user_id", lazy="select"
+    )
     audit_logs = relationship("AuditLog", back_populates="user", lazy="select")
+    notifications = relationship("Notification", back_populates="user", lazy="select")
 
     __table_args__ = (
         Index("ix_users_email", "email"),

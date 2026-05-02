@@ -13,7 +13,7 @@ from app.models.subscription import PurchaseRequest, PurchaseStatus, UserSubscri
 from app.models.log import AuditLog, AIOperationLog
 from app.schemas.subscription import PurchaseRequestResponse, ReviewPurchaseRequest
 from app.schemas.user import UserResponse, UserUpdate
-from app.utils.pagination import PaginationParams, paginate
+from app.utils.pagination import PaginationParams, paginate, orm_to_dict
 from app.services.notification_service import (
     notify_user_purchase_approved,
     notify_user_purchase_rejected,
@@ -36,8 +36,10 @@ def list_purchase_requests(
         query = query.filter(PurchaseRequest.status == PurchaseStatus(status_filter))
     except ValueError:
         pass
-    return paginate(query.order_by(PurchaseRequest.created_at.desc()),
-                    PaginationParams(page=page, page_size=page_size))
+    result = paginate(query.order_by(PurchaseRequest.created_at.desc()),
+                      PaginationParams(page=page, page_size=page_size))
+    result["items"] = [PurchaseRequestResponse.model_validate(r) for r in result["items"]]
+    return result
 
 
 @router.post("/purchase-requests/{request_id}/review", response_model=PurchaseRequestResponse)
@@ -101,7 +103,9 @@ def list_users(
     db: Session = Depends(get_db),
 ) -> dict:
     query = db.query(User).order_by(User.created_at.desc())
-    return paginate(query, PaginationParams(page=page, page_size=page_size))
+    result = paginate(query, PaginationParams(page=page, page_size=page_size))
+    result["items"] = [UserResponse.model_validate(u) for u in result["items"]]
+    return result
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -121,6 +125,55 @@ def update_user(
     return user
 
 
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def deactivate_user(
+    user_id: int,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Kullanıcıyı siler (hard delete). Kendi hesabını silemez."""
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Kendi hesabınızı silemezsiniz.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+    db.delete(user)
+    db.commit()
+
+
+@router.get("/stats/platform", response_model=dict)
+def get_platform_stats(
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Genel platform metrikleri: kullanıcı, şirket, rapor, abonelik sayıları."""
+    from sqlalchemy import func
+    from app.models.company import Company
+    from app.models.financial import FinancialReport
+    from app.models.subscription import UserSubscription, SubscriptionStatus
+
+    total_users = db.query(func.count(User.id)).scalar()
+    active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar()
+    total_companies = db.query(func.count(Company.id)).scalar()
+    total_reports = db.query(func.count(FinancialReport.id)).scalar()
+    ai_reports = db.query(func.count(FinancialReport.id)).filter(
+        FinancialReport.is_ai_generated == True
+    ).scalar()
+    active_subs = db.query(func.count(UserSubscription.id)).filter(
+        UserSubscription.status == SubscriptionStatus.ACTIVE
+    ).scalar()
+    pending_purchases = db.query(func.count(PurchaseRequest.id)).filter(
+        PurchaseRequest.status == PurchaseStatus.PENDING
+    ).scalar()
+
+    return {
+        "users": {"total": total_users, "active": active_users},
+        "companies": {"total": total_companies},
+        "reports": {"total": total_reports, "ai_generated": ai_reports},
+        "subscriptions": {"active": active_subs, "pending_purchases": pending_purchases},
+    }
+
+
 @router.get("/logs/audit", response_model=dict)
 def get_audit_logs(
     page: int = 1,
@@ -130,7 +183,9 @@ def get_audit_logs(
 ) -> dict:
     """T9: CRUD audit loglarını görüntüle."""
     query = db.query(AuditLog).order_by(AuditLog.timestamp.desc())
-    return paginate(query, PaginationParams(page=page, page_size=page_size))
+    result = paginate(query, PaginationParams(page=page, page_size=page_size))
+    result["items"] = [orm_to_dict(r) for r in result["items"]]
+    return result
 
 
 @router.get("/logs/ai", response_model=dict)
@@ -149,7 +204,9 @@ def get_ai_logs(
     if success is not None:
         query = query.filter(AIOperationLog.success == success)
     query = query.order_by(AIOperationLog.created_at.desc())
-    return paginate(query, PaginationParams(page=page, page_size=page_size))
+    result = paginate(query, PaginationParams(page=page, page_size=page_size))
+    result["items"] = [orm_to_dict(r) for r in result["items"]]
+    return result
 
 
 @router.get("/stats/ai", response_model=dict)

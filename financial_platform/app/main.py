@@ -25,9 +25,14 @@ app = FastAPI(
 )
 
 # CORS
+_origins = settings.ALLOWED_ORIGINS
+# Geliştirme ortamında file:// protokolü için "null" origin'e izin ver
+if settings.DEBUG and "null" not in _origins:
+    _origins = list(_origins) + ["null"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

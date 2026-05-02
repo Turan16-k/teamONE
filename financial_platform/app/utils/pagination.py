@@ -1,8 +1,7 @@
 """T10: N+1 önleme ve pagination mekanizması"""
-from typing import TypeVar, Generic, List, Optional, Type
+from typing import TypeVar, Generic, List
 from pydantic import BaseModel
-from sqlalchemy.orm import Query, Session
-from sqlalchemy import func
+from sqlalchemy.orm import Query
 from math import ceil
 
 T = TypeVar("T")
@@ -28,6 +27,13 @@ class PagedResponse(BaseModel, Generic[T]):
     total_pages: int
     has_next: bool
     has_prev: bool
+
+
+_SA_SKIP = {"_sa_instance_state"}
+
+
+def orm_to_dict(obj) -> dict:
+    return {k: v for k, v in vars(obj).items() if k not in _SA_SKIP}
 
 
 def paginate(query: Query, params: PaginationParams) -> dict:

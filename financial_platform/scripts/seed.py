@@ -6,8 +6,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.database import SessionLocal, engine
-from app.models import Base, User, UserRole, SubscriptionPackage
+from app.database import SessionLocal, engine, Base
+from app.models import User, UserRole, SubscriptionPackage
 from app.core.security import get_password_hash
 
 

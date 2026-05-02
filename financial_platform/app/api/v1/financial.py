@@ -4,14 +4,15 @@ T3 + T10: Finansal rapor CRUD endpoint'leri.
 - Manuel düzenleme: PUT ile çift yönlü veri bağlama
 - N+1 önleme: joinedload ile company bilgisi tek sorguda
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
+from typing import Optional
 import io
 
 from app.database import get_db
 from app.api.deps import get_current_active_user
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.company import Company
 from app.models.financial import FinancialReport, ReportType, PeriodType
 from app.models.log import LogAction
@@ -19,8 +20,28 @@ from app.schemas.financial import FinancialReportCreate, FinancialReportUpdate, 
 from app.core.rbac import require_owner_or_admin
 from app.services.ai_service import ai_service
 from app.services.pptx_service import pptx_service
+from app.services.notification_service import notify_user_report_ready
 from app.utils.logging import log_audit, log_exception
 from app.utils.pagination import PaginationParams, paginate
+from app.models.subscription import UserSubscription, SubscriptionStatus
+
+
+def _check_and_increment_ai_quota(user: User, db: Session) -> None:
+    """Kullanıcının AI çağrı kotasını kontrol eder; yeterliyse sayacı artırır."""
+    sub: Optional[UserSubscription] = user.subscription
+    if not sub or sub.status != SubscriptionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=402,
+            detail="Aktif bir aboneliğiniz yok. Lütfen bir paket satın alın.",
+        )
+    pkg = sub.package
+    if pkg and sub.ai_calls_used >= pkg.max_ai_calls_per_month:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Aylık AI çağrı limitine ulaştınız ({pkg.max_ai_calls_per_month} çağrı).",
+        )
+    sub.ai_calls_used += 1
+    db.flush()
 
 router = APIRouter(prefix="/financial", tags=["Financial Reports"])
 
@@ -45,18 +66,34 @@ def list_reports(
     company_id: int,
     page: int = 1,
     page_size: int = 20,
+    fiscal_year: Optional[int] = Query(None),
+    report_type: Optional[str] = Query(None),
+    period: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict:
     _get_company_or_403(company_id, current_user, db)
-    # N+1 önleme: company ilişkisini joinedload ile çek
     query = (
         db.query(FinancialReport)
         .options(joinedload(FinancialReport.company))
         .filter(FinancialReport.company_id == company_id)
-        .order_by(FinancialReport.fiscal_year.desc(), FinancialReport.created_at.desc())
     )
-    return paginate(query, PaginationParams(page=page, page_size=page_size))
+    if fiscal_year:
+        query = query.filter(FinancialReport.fiscal_year == fiscal_year)
+    if report_type:
+        try:
+            query = query.filter(FinancialReport.report_type == ReportType(report_type))
+        except ValueError:
+            pass
+    if period:
+        try:
+            query = query.filter(FinancialReport.period == PeriodType(period))
+        except ValueError:
+            pass
+    query = query.order_by(FinancialReport.fiscal_year.desc(), FinancialReport.created_at.desc())
+    result = paginate(query, PaginationParams(page=page, page_size=page_size))
+    result["items"] = [FinancialReportResponse.model_validate(r) for r in result["items"]]
+    return result
 
 
 @router.post("/companies/{company_id}/reports",
@@ -177,10 +214,13 @@ def trigger_ai_analysis(
         },
     }
 
+    _check_and_increment_ai_quota(current_user, db)
+
     try:
         analysis = ai_service.analyze_financial_ratios(financial_data, db, current_user.id)
         report.ai_ratios = analysis
         report.is_ai_generated = True
+        notify_user_report_ready(db, current_user.id, report_id, report.company.name)
         db.commit()
         return {"status": "success", "analysis": analysis}
     except Exception as exc:
@@ -212,6 +252,8 @@ async def upload_and_extract(
     log_audit(db, current_user.id, LogAction.UPLOAD, "Document", company_id,
               new_values={"file_name": file.filename, "size": len(content)},
               ip_address=request.client.host if request.client else None)
+
+    _check_and_increment_ai_quota(current_user, db)
 
     try:
         extracted = ai_service.extract_financial_data_from_document(
@@ -308,3 +350,142 @@ def export_pptx(
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+@router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_report(
+    report_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> None:
+    report = (
+        db.query(FinancialReport)
+        .options(joinedload(FinancialReport.company))
+        .filter(FinancialReport.id == report_id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Rapor bulunamadı.")
+    require_owner_or_admin(report.company.owner_id, current_user)
+
+    log_audit(db, current_user.id, LogAction.DELETE, "FinancialReport", report_id,
+              old_values={"company_id": report.company_id, "fiscal_year": report.fiscal_year},
+              ip_address=request.client.host if request.client else None)
+    db.delete(report)
+    db.commit()
+
+
+@router.get("/companies/{company_id}/reports/compare", response_model=dict)
+def compare_years(
+    company_id: int,
+    year_a: int = Query(..., description="Karşılaştırılacak birinci yıl"),
+    year_b: int = Query(..., description="Karşılaştırılacak ikinci yıl"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """İki farklı mali yılın temel kalemlerini yan yana karşılaştırır."""
+    _get_company_or_403(company_id, current_user, db)
+
+    def _get_report(year: int) -> Optional[FinancialReport]:
+        return (
+            db.query(FinancialReport)
+            .filter(
+                FinancialReport.company_id == company_id,
+                FinancialReport.fiscal_year == year,
+                FinancialReport.period == PeriodType.ANNUAL,
+            )
+            .order_by(FinancialReport.created_at.desc())
+            .first()
+        )
+
+    rep_a = _get_report(year_a)
+    rep_b = _get_report(year_b)
+
+    def _snap(r: Optional[FinancialReport]) -> Optional[dict]:
+        if not r:
+            return None
+        return {
+            "report_id": r.id,
+            "total_assets": float(r.total_assets) if r.total_assets else None,
+            "total_liabilities": float(r.total_liabilities) if r.total_liabilities else None,
+            "total_equity": float(r.total_equity) if r.total_equity else None,
+            "revenue": float(r.revenue) if r.revenue else None,
+            "gross_profit": float(r.gross_profit) if r.gross_profit else None,
+            "net_income": float(r.net_income) if r.net_income else None,
+            "ebitda": float(r.ebitda) if r.ebitda else None,
+            "operating_cash_flow": float(r.operating_cash_flow) if r.operating_cash_flow else None,
+            "financial_score": r.ai_ratios.get("financial_score") if r.ai_ratios else None,
+        }
+
+    snap_a = _snap(rep_a)
+    snap_b = _snap(rep_b)
+
+    def _delta(a_val, b_val):
+        if a_val is None or b_val is None or b_val == 0:
+            return None
+        return round((a_val - b_val) / abs(b_val) * 100, 2)
+
+    deltas = {}
+    if snap_a and snap_b:
+        for key in ("total_assets", "total_liabilities", "total_equity",
+                    "revenue", "gross_profit", "net_income", "ebitda", "operating_cash_flow"):
+            deltas[key] = _delta(snap_a.get(key), snap_b.get(key))
+
+    return {
+        str(year_a): snap_a,
+        str(year_b): snap_b,
+        "change_pct": deltas,
+    }
+
+
+import csv
+
+@router.get("/reports/{report_id}/export/csv")
+def export_csv(
+    report_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """O6: Finansal raporu CSV formatında indir."""
+    report = (
+        db.query(FinancialReport)
+        .options(joinedload(FinancialReport.company))
+        .filter(FinancialReport.id == report_id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Rapor bulunamadı.")
+    require_owner_or_admin(report.company.owner_id, current_user)
+
+    log_audit(db, current_user.id, LogAction.EXPORT, "FinancialReport", report_id,
+              new_values={"format": "csv"})
+    db.commit()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Başlıklar
+    writer.writerow(["Firma", "Yıl", "Dönem", "Rapor Türü", "Toplam Varlık", "Toplam Yükümlülük", "Toplam Özkaynak", "Gelir", "Net Kar"])
+    
+    # Veriler
+    writer.writerow([
+        report.company.name,
+        report.fiscal_year,
+        report.period.value,
+        report.report_type.value,
+        report.total_assets,
+        report.total_liabilities,
+        report.total_equity,
+        report.revenue,
+        report.net_income
+    ])
+
+    output.seek(0)
+    filename = f"{report.company.name}_{report.fiscal_year}_{report.period.value}.csv"
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

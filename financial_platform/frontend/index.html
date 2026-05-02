@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Analysis Platform | Smart Inspection AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<!-- ===================== LOGIN EKRANI ===================== -->
+<div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <div class="logo-icon"><i data-lucide="layout-dashboard"></i></div>
+            <span class="logo-text">Smart<span>Fin</span></span>
+        </div>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Giriş Yap</button>
+            <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Kayıt Ol</button>
+        </div>
+
+        <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>E-posta</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="mail"></i>
+                    <input type="email" id="loginEmail" placeholder="ornek@firma.com" required autocomplete="email">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Şifre</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="lock"></i>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+            </div>
+            <p id="loginError" class="auth-error"></p>
+            <button type="submit" class="btn-primary full-width" id="loginBtn">
+                <i data-lucide="log-in"></i> Giriş Yap
+            </button>
+        </form>
+
+        <form id="registerForm" class="auth-form" style="display:none" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label>Ad Soyad</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="user"></i>
+                    <input type="text" id="regName" placeholder="Ahmet Yılmaz" required autocomplete="name">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>E-posta</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="mail"></i>
+                    <input type="email" id="regEmail" placeholder="ornek@firma.com" required autocomplete="email">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Şifre</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="lock"></i>
+                    <input type="password" id="regPassword" placeholder="Min. 8 karakter" required minlength="8" autocomplete="new-password">
+                </div>
+            </div>
+            <p id="registerError" class="auth-error"></p>
+            <button type="submit" class="btn-primary full-width" id="registerBtn">
+                <i data-lucide="user-plus"></i> Kayıt Ol
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== UYGULAMA EKRANI ===================== -->
+<div id="appScreen" class="app-container" style="display:none">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon"><i data-lucide="layout-dashboard"></i></div>
+            <span class="logo-text">Smart<span>Fin</span></span>
+        </div>
+        <nav class="nav-menu">
+            <a href="javascript:void(0)" class="nav-item active" data-view="dashboard"
+               onclick="switchView('dashboard',this)">
+                <i data-lucide="home"></i><span>Dashboard</span>
+            </a>
+            <a href="javascript:void(0)" class="nav-item" data-view="companies"
+               onclick="switchView('companies',this)">
+                <i data-lucide="building-2"></i><span>Şirketlerim</span>
+            </a>
+            <a href="javascript:void(0)" class="nav-item" data-view="reports"
+               onclick="switchView('reports',this)">
+                <i data-lucide="file-text"></i><span>Finansal Raporlar</span>
+            </a>
+            <a href="javascript:void(0)" class="nav-item" data-view="subscription"
+               onclick="switchView('subscription',this)">
+                <i data-lucide="credit-card"></i><span>Abonelik</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <img id="avatarImg" src="" alt="Avatar">
+                <div class="user-info">
+                    <p class="user-name" id="sidebarName">—</p>
+                    <p class="user-role" id="sidebarRole">—</p>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="handleLogout()" title="Çıkış Yap">
+                <i data-lucide="log-out"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <header class="top-header">
+            <div class="search-bar">
+                <i data-lucide="search"></i>
+                <input type="text" id="globalSearch" placeholder="Şirket ara..."
+                       oninput="handleGlobalSearch(this.value)">
+            </div>
+            <div class="header-actions">
+                <div style="position:relative">
+                    <button class="icon-btn" id="notifBtn" title="Bildirimler">
+                        <i data-lucide="bell"></i>
+                        <span class="badge" id="notifBadge" style="display:none"></span>
+                    </button>
+                    <!-- Bildirim Paneli -->
+                    <div id="notifPanel" class="notif-panel" style="display:none">
+                        <div class="notif-header">
+                            <span>Bildirimler</span>
+                            <button onclick="markAllRead()" class="notif-mark-all">Tümünü Okundu İşaretle</button>
+                        </div>
+                        <div id="notifList" class="notif-list">
+                            <p class="notif-empty">Yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="openUploadModal()">
+                    <i data-lucide="plus"></i> Yeni Analiz
+                </button>
+            </div>
+        </header>
+
+        <!-- ====== DASHBOARD ====== -->
+        <div id="view-dashboard">
+            <section class="dashboard-hero">
+                <h1>Finansal Verilerinizi <span class="gradient-text">Zekaya</span> Dönüştürün</h1>
+                <p>Gemini 1.5 Pro destekli OCR ve finansal analiz motoruyla saniyeler içinde raporlarınızı hazırlayın.</p>
+            </section>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i data-lucide="building-2"></i></div>
+                    <div class="stat-details">
+                        <h3>Şirketlerim</h3>
+                        <p class="stat-value" id="statCompanies">—</p>
+                        <span class="stat-trend">Toplam kayıtlı</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i data-lucide="file-text"></i></div>
+                    <div class="stat-details">
+                        <h3>Finansal Raporlar</h3>
+                        <p class="stat-value" id="statReports">—</p>
+                        <span class="stat-trend">Toplam</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i data-lucide="cpu"></i></div>
+                    <div class="stat-details">
+                        <h3>AI Kullanımı</h3>
+                        <p class="stat-value" id="statAiUsed">—</p>
+                        <span class="stat-trend" id="statAiLimit">Bu Ay</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i data-lucide="calendar"></i></div>
+                    <div class="stat-details">
+                        <h3>Abonelik Bitiş</h3>
+                        <p class="stat-value" id="statSubEnd">—</p>
+                        <span class="stat-trend" id="statSubStatus">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <div class="card analysis-card">
+                    <div class="card-header">
+                        <h2>Son Raporlar</h2>
+                        <a href="javascript:void(0)" class="view-all"
+                           onclick="switchView('reports', document.querySelector('[data-view=reports]'))">
+                            Tümünü Gör
+                        </a>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Şirket</th><th>Yıl</th><th>Tür</th><th>AI</th><th>Aksiyon</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentReportsBody">
+                                <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card insight-card">
+                    <div class="card-header">
+                        <h2>Abonelik Durumu</h2>
+                        <i data-lucide="credit-card" class="sparkle-icon"></i>
+                    </div>
+                    <div class="insight-content" id="subscriptionWidget">
+                        <p class="text-muted">Yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== ŞİRKETLER ====== -->
+        <div id="view-companies" style="display:none">
+            <div class="view-header">
+                <h2>Şirketlerim</h2>
+                <button class="btn-primary" onclick="openCreateCompanyModal()">
+                    <i data-lucide="plus"></i> Yeni Şirket
+                </button>
+            </div>
+            <div class="search-filter-bar">
+                <div class="search-bar small">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="companySearch" placeholder="Şirket adı veya vergi no..."
+                           oninput="debounceCompanySearch(this.value)">
+                </div>
+            </div>
+            <div class="card" style="margin-top:1rem">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Şirket</th><th>Vergi No</th><th>Sektör</th><th>Kayıt Tarihi</th><th>Aksiyon</th>
+                            </tr>
+                        </thead>
+                        <tbody id="companiesBody">
+                            <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="companiesPagination" class="pagination"></div>
+            </div>
+        </div>
+
+        <!-- ====== RAPORLAR ====== -->
+        <div id="view-reports" style="display:none">
+            <div class="view-header"><h2>Finansal Raporlar</h2></div>
+            <div class="search-filter-bar">
+                <select id="filterCompany" onchange="loadAllReports()" class="filter-select">
+                    <option value="">Şirket Seçin...</option>
+                </select>
+                <select id="filterYear" onchange="loadAllReports()" class="filter-select">
+                    <option value="">Tüm Yıllar</option>
+                </select>
+                <select id="filterType" onchange="loadAllReports()" class="filter-select">
+                    <option value="">Tüm Türler</option>
+                    <option value="balance_sheet">Bilanço</option>
+                    <option value="income_statement">Gelir Tablosu</option>
+                    <option value="cash_flow">Nakit Akışı</option>
+                    <option value="combined">Kombine</option>
+                </select>
+            </div>
+            <div class="card" style="margin-top:1rem">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Şirket</th><th>Yıl</th><th>Tür</th><th>Dönem</th><th>AI</th><th>Aksiyonlar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsBody">
+                            <tr><td colspan="6" class="text-center text-muted">Soldaki menüden şirket seçin.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="reportsPagination" class="pagination"></div>
+            </div>
+        </div>
+
+        <!-- ====== ABONELİK ====== -->
+        <div id="view-subscription" style="display:none">
+            <div class="view-header"><h2>Abonelik & Paketler</h2></div>
+            <div id="currentSubCard" class="card sub-status-card" style="margin-bottom:1.5rem">
+                <p class="text-muted">Yükleniyor...</p>
+            </div>
+            <h3 style="margin-bottom:1rem; font-family:'Outfit',sans-serif">Mevcut Paketler</h3>
+            <div id="packagesGrid" class="packages-grid">
+                <p class="text-muted">Yükleniyor...</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ===================== MODALLER ===================== -->
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal" onclick="modalBackdropClose(event,'uploadModal')">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Finansal Döküman Yükle</h2>
+            <button class="close-modal" onclick="closeModal('uploadModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>Şirket *</label>
+            <select id="uploadCompanyId" class="filter-select full-width">
+                <option value="">Şirket seçin...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Mali Yıl *</label>
+            <input type="number" id="uploadFiscalYear" class="filter-select full-width"
+                   min="2000" max="2099">
+        </div>
+        <div class="upload-area" id="dropZone">
+            <i data-lucide="upload-cloud"></i>
+            <p>Sürükle bırak veya <span>dosya seç</span></p>
+            <small>PDF, PNG, JPG, WEBP (Maks. 20MB)</small>
+            <input type="file" id="fileInput" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.webp">
+        </div>
+        <div id="uploadProgress" class="upload-progress" style="display:none">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <p id="uploadStatus">Belge yükleniyor...</p>
+        </div>
+        <p id="uploadError" class="auth-error" style="margin-top:.5rem"></p>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('uploadModal')">İptal</button>
+            <button class="btn-primary" id="startAnalysis" onclick="handleUpload()" disabled>
+                <i data-lucide="sparkles"></i> Analizi Başlat
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Şirket Oluştur Modal -->
+<div id="createCompanyModal" class="modal" onclick="modalBackdropClose(event,'createCompanyModal')">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Yeni Şirket Ekle</h2>
+            <button class="close-modal" onclick="closeModal('createCompanyModal')">&times;</button>
+        </div>
+        <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
+            <div class="form-group">
+                <label>Şirket Adı *</label>
+                <input type="text" id="newCompanyName" class="filter-select full-width" required>
+            </div>
+            <div class="form-group">
+                <label>Vergi Numarası</label>
+                <input type="text" id="newCompanyTaxId" class="filter-select full-width" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label>Sektör</label>
+                <input type="text" id="newCompanySector" class="filter-select full-width"
+                       placeholder="Teknoloji, İnşaat, Finans...">
+            </div>
+            <div class="form-group">
+                <label>Açıklama</label>
+                <textarea id="newCompanyDesc" class="filter-select full-width" rows="2"
+                          placeholder="İsteğe bağlı..."></textarea>
+            </div>
+            <p id="companyError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('createCompanyModal')">İptal</button>
+                <button type="submit" class="btn-primary" id="createCompanyBtn">
+                    <i data-lucide="plus"></i> Oluştur
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Şifre Değiştir Modal -->
+<div id="changePasswordModal" class="modal" onclick="modalBackdropClose(event,'changePasswordModal')">
+    <div class="modal-content" style="max-width:400px">
+        <div class="modal-header">
+            <h2>Şifre Değiştir</h2>
+            <button class="close-modal" onclick="closeModal('changePasswordModal')">&times;</button>
+        </div>
+        <form onsubmit="handleChangePassword(event)">
+            <div class="form-group">
+                <label>Mevcut Şifre</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="lock"></i>
+                    <input type="password" id="currentPassword" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Yeni Şifre</label>
+                <div class="input-icon-wrap">
+                    <i data-lucide="key"></i>
+                    <input type="password" id="newPassword" minlength="8" required>
+                </div>
+            </div>
+            <p id="pwError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('changePasswordModal')">İptal</button>
+                <button type="submit" class="btn-primary">Değiştir</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="app.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

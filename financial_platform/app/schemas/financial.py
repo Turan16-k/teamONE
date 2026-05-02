@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, Any
 from decimal import Decimal
 from datetime import datetime
@@ -105,6 +105,8 @@ class FinancialReportUpdate(BaseModel):
 
 
 class FinancialReportResponse(FinancialReportCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     is_ai_generated: bool
     is_verified: bool
@@ -112,6 +114,3 @@ class FinancialReportResponse(FinancialReportCreate):
     ai_ratios: Optional[Any] = None
     created_at: datetime
     updated_at: Optional[datetime]
-
-    class Config:
-        from_attributes = True

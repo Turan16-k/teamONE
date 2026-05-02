@@ -25,7 +25,7 @@ class Notification(Base):
     meta = Column(JSON, nullable=True)        # ilgili entity_id, link, vb.
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="notifications")
 
     __table_args__ = (
         Index("ix_notifications_user_read", "user_id", "is_read"),
