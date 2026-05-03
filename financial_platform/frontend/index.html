@@ -102,6 +102,10 @@
                onclick="switchView('subscription',this)">
                 <i data-lucide="credit-card"></i><span>Abonelik</span>
             </a>
+            <a href="javascript:void(0)" class="nav-item" data-view="admin" id="navAdmin" style="display:none"
+               onclick="switchView('admin',this)">
+                <i data-lucide="shield"></i><span>Admin Paneli</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="user-profile">
@@ -126,6 +130,9 @@
                        oninput="handleGlobalSearch(this.value)">
             </div>
             <div class="header-actions">
+                <button class="icon-btn" id="darkModeBtn" onclick="toggleDarkMode()" title="Tema Değiştir">
+                    <i data-lucide="sun"></i>
+                </button>
                 <div style="position:relative">
                     <button class="icon-btn" id="notifBtn" title="Bildirimler">
                         <i data-lucide="bell"></i>
@@ -280,11 +287,11 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Şirket</th><th>Yıl</th><th>Tür</th><th>Dönem</th><th>AI</th><th>Aksiyonlar</th>
+                                <th>Şirket</th><th>Yıl</th><th>Tür</th><th>Dönem</th><th>AI</th><th>Skor</th><th>Aksiyonlar</th>
                             </tr>
                         </thead>
                         <tbody id="reportsBody">
-                            <tr><td colspan="6" class="text-center text-muted">Soldaki menüden şirket seçin.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted">Soldaki menüden şirket seçin.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -301,6 +308,87 @@
             <h3 style="margin-bottom:1rem; font-family:'Outfit',sans-serif">Mevcut Paketler</h3>
             <div id="packagesGrid" class="packages-grid">
                 <p class="text-muted">Yükleniyor...</p>
+            </div>
+        </div>
+
+        <!-- ====== ADMIN PANELİ ====== -->
+        <div id="view-admin" style="display:none">
+            <div class="view-header">
+                <h2>Admin Paneli</h2>
+                <div class="admin-header-badge"><i data-lucide="shield"></i> Yönetici</div>
+            </div>
+
+            <div class="admin-tabs-bar">
+                <button class="admin-tab-btn active" onclick="switchAdminTab('requests',this)">
+                    <i data-lucide="inbox"></i> Paket İstekleri
+                </button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('users',this)">
+                    <i data-lucide="users"></i> Kullanıcılar
+                </button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('stats',this)">
+                    <i data-lucide="bar-chart-2"></i> Platform İstatistikleri
+                </button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('logs',this)">
+                    <i data-lucide="file-text"></i> Denetim Logları
+                </button>
+            </div>
+
+            <!-- Tab: Purchase Requests -->
+            <div id="admin-tab-requests" class="admin-tab-pane">
+                <div class="card" style="margin-top:1rem">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Kullanıcı</th><th>Paket</th><th>Tarih</th><th>Durum</th><th>Aksiyonlar</th></tr>
+                            </thead>
+                            <tbody id="adminRequestsBody">
+                                <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="adminPagination" class="pagination"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Users -->
+            <div id="admin-tab-users" class="admin-tab-pane" style="display:none">
+                <div class="card" style="margin-top:1rem">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Ad Soyad</th><th>E-posta</th><th>Rol</th><th>Kayıt Tarihi</th><th>Aksiyonlar</th></tr>
+                            </thead>
+                            <tbody id="adminUsersBody">
+                                <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="adminUsersPagination" class="pagination"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Platform Stats -->
+            <div id="admin-tab-stats" class="admin-tab-pane" style="display:none">
+                <div id="adminStatsGrid" class="stats-grid" style="margin-top:1rem">
+                    <p class="text-muted">Yükleniyor...</p>
+                </div>
+            </div>
+
+            <!-- Tab: Audit Logs -->
+            <div id="admin-tab-logs" class="admin-tab-pane" style="display:none">
+                <div class="card" style="margin-top:1rem">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Zaman</th><th>Kullanıcı</th><th>Aksiyon</th><th>Kaynak</th><th>Detay</th></tr>
+                            </thead>
+                            <tbody id="adminLogsBody">
+                                <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="adminLogsPagination" class="pagination"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -411,6 +499,28 @@
                 <button type="submit" class="btn-primary">Değiştir</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Premium Modal (T6/T7) -->
+<div id="premiumModal" class="modal" onclick="modalBackdropClose(event,'premiumModal')">
+    <div class="modal-content" style="max-width:640px">
+        <div class="modal-header premium-modal-header">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i data-lucide="crown" style="color:var(--accent);width:24px"></i>
+                <h2>Premium Özellik Gerekli</h2>
+            </div>
+            <button class="close-modal" onclick="closeModal('premiumModal')">&times;</button>
+        </div>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem">
+            Bu özelliği kullanmak için aktif bir abonelik gereklidir. Aşağıdan bir paket seçerek talep oluşturabilirsiniz.
+        </p>
+        <div id="premiumPackagesGrid" class="packages-grid">
+            <p class="text-muted">Yükleniyor...</p>
+        </div>
+        <div class="modal-footer" style="margin-top:1.5rem">
+            <button class="btn-secondary" onclick="closeModal('premiumModal')">Kapat</button>
+        </div>
     </div>
 </div>
 

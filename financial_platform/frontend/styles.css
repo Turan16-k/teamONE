@@ -888,3 +888,102 @@ textarea.filter-select { resize: vertical; }
     .packages-grid { grid-template-columns: 1fr; }
     .content-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── Admin Tema (Arayüz Ayrışması) ───────────────────────────── */
+body.admin-theme {
+    --primary: #8E44AD;
+    --primary-dark: #5B2C6F;
+    --bg-card: #151119;
+}
+body.admin-theme .sidebar {
+    border-right-color: rgba(142, 68, 173, 0.3);
+}
+body.admin-theme .logo-icon {
+    box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+}
+body.admin-theme .nav-item.active {
+    box-shadow: 0 4px 12px rgba(142, 68, 173, 0.5);
+}
+
+/* ─── Admin Panel Tabs ─────────────────────────────────────────── */
+.admin-tabs-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 6px;
+    margin-bottom: 0;
+}
+.admin-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: .85rem;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: var(--transition);
+}
+.admin-tab-btn i { width: 16px; height: 16px; flex-shrink: 0; }
+.admin-tab-btn:hover { background: var(--glass); color: var(--text-main); }
+.admin-tab-btn.active { background: var(--primary); color: white; }
+.admin-tab-pane { animation: fadeIn .25s ease-out; }
+
+/* ─── Admin Header Badge ───────────────────────────────────────── */
+.admin-header-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--primary);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: .82rem;
+    font-weight: 600;
+}
+.admin-header-badge i { width: 15px; height: 15px; }
+
+/* ─── Financial Score Badge ────────────────────────────────────── */
+.score-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.score-badge.good { background: rgba(39,174,96,.15); color: #27AE60; }
+.score-badge.avg  { background: rgba(243,156,18,.15); color: #F39C12; }
+.score-badge.bad  { background: rgba(231,76,60,.15);  color: #E74C3C; }
+
+/* ─── Light Mode (O2 Dark Mode Toggle) ────────────────────────── */
+body.light-mode {
+    --bg-dark: #EEF2F7;
+    --bg-card: #FFFFFF;
+    --text-main: #1A202C;
+    --text-muted: #64748B;
+    --glass: rgba(0, 0, 0, 0.04);
+    --glass-border: rgba(0, 0, 0, 0.1);
+}
+body.light-mode .sidebar { background: #FFFFFF; }
+body.light-mode .top-header { background: #EEF2F7; }
+body.light-mode .search-bar { background: #FFFFFF; color: #1A202C; }
+body.light-mode .search-bar input { color: #1A202C; }
+body.light-mode .icon-btn { background: #FFFFFF; color: #1A202C; }
+body.light-mode .filter-select { background: #FFFFFF; color: #1A202C; }
+body.light-mode .page-btn { background: #FFFFFF; }
+body.light-mode .card { background: #FFFFFF; }
+body.light-mode .auth-card { background: #FFFFFF; }
+body.light-mode .modal-content { background: #FFFFFF; }
+body.light-mode .package-card { background: #FFFFFF; }
+body.light-mode .notif-panel { background: #FFFFFF; }
+body.light-mode .toast-success,
+body.light-mode .toast-error,
+body.light-mode .toast-info { background: rgba(255,255,255,.95); }
+
+/* ─── Premium Modal Icon ───────────────────────────────────────── */
+.premium-modal-header { color: var(--accent); }

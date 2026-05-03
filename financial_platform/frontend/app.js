@@ -194,6 +194,14 @@ async function initApp(user) {
     document.getElementById('avatarImg').src =
         `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name)}&background=2E86AB&color=fff&size=80`;
 
+    if (u.role === 'admin') {
+        document.getElementById('navAdmin').style.display = 'flex';
+        document.body.classList.add('admin-theme');
+    } else {
+        document.getElementById('navAdmin').style.display = 'none';
+        document.body.classList.remove('admin-theme');
+    }
+
     lucide.createIcons();
 
     // Dashboard varsayılan görünüm
@@ -202,7 +210,7 @@ async function initApp(user) {
 }
 
 // ─── Görünüm Geçişi ────────────────────────────────────────────────
-const VIEWS = ['dashboard','companies','reports','subscription'];
+const VIEWS = ['dashboard','companies','reports','subscription','admin'];
 
 async function switchView(view, navEl, loadData = true) {
     VIEWS.forEach(v => {
@@ -219,6 +227,7 @@ async function switchView(view, navEl, loadData = true) {
     if (view === 'companies')    loadCompanies();
     if (view === 'reports')      await initReportsView();
     if (view === 'subscription') loadSubscriptionView();
+    if (view === 'admin')        loadAdminView();
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────────
@@ -509,12 +518,19 @@ async function loadAllReports() {
     const compName = _companyCache.find(c => String(c.id) === String(companyId))?.name || '—';
 
     if (!data.items?.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Bu şirkete ait rapor bulunamadı.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Bu şirkete ait rapor bulunamadı.</td></tr>';
         document.getElementById('reportsPagination').innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = data.items.map(r => `
+    tbody.innerHTML = data.items.map(r => {
+        let ratios = {};
+        try { ratios = typeof r.ai_ratios === 'string' ? JSON.parse(r.ai_ratios) : (r.ai_ratios || {}); } catch(e) {}
+        const score = ratios.financial_score ?? null;
+        const scoreBadge = score != null
+            ? `<span class="score-badge ${score >= 70 ? 'good' : score >= 40 ? 'avg' : 'bad'}" title="Finansal Skor">${score}</span>`
+            : '—';
+        return `
         <tr>
             <td><div class="company-cell">
                 <div class="company-logo" style="background:${strColor(compName)}">${compName[0].toUpperCase()}</div>
@@ -526,6 +542,7 @@ async function loadAllReports() {
             <td>${r.is_ai_generated
                 ? '<span class="status-badge success">AI</span>'
                 : '<span class="status-badge warning">Manuel</span>'}</td>
+            <td>${scoreBadge}</td>
             <td>
                 <div style="display:flex;gap:4px;flex-wrap:wrap">
                     <button class="action-btn" title="AI Analiz Başlat" id="analyzeBtn-${r.id}"
@@ -546,8 +563,8 @@ async function loadAllReports() {
                     </button>
                 </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
     lucide.createIcons();
 
     renderPagination('reportsPagination', data.page, data.pages, p => {
@@ -561,6 +578,12 @@ async function triggerAnalysis(reportId, btn) {
     const res = await http(`/financial/reports/${reportId}/analyze`, { method: 'POST' });
     setLoading(btn, false);
     lucide.createIcons();
+    if (res?.status === 402 || res?.status === 429) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.detail || 'Bu özellik için abonelik gereklidir.', 'error');
+        showPremiumModal();
+        return;
+    }
     if (res?.ok) {
         toast('AI analizi tamamlandı!', 'success');
         loadAllReports();
@@ -720,6 +743,12 @@ async function handleUpload() {
     document.getElementById('progressFill').style.width = '100%';
     setLoading(btn, false, '<i data-lucide="sparkles"></i> Analizi Başlat');
 
+    if (res?.status === 402 || res?.status === 429) {
+        document.getElementById('uploadProgress').style.display = 'none';
+        closeModal('uploadModal');
+        showPremiumModal();
+        return;
+    }
     if (!res?.ok) {
         const err = await res?.json().catch(() => ({}));
         document.getElementById('uploadProgress').style.display = 'none';
@@ -821,9 +850,230 @@ async function requestPurchase(packageId, packageName) {
     if (!res) return;
     if (res.ok) {
         toast(`"${packageName}" için talep oluşturuldu. Admin onayı bekleniyor.`, 'success');
+        loadSubscriptionView();
     } else {
         const err = await res.json().catch(() => ({}));
         toast(err.detail || 'Talep oluşturulamadı.', 'error');
+    }
+}
+
+// ─── Admin Paneli ──────────────────────────────────────────────────
+let adminRequestsPage = 1;
+let adminUsersPage    = 1;
+let adminLogsPage     = 1;
+
+// Cache for enriching purchase requests with user/package names
+let _adminUserCache    = {};
+let _adminPackageCache = {};
+
+async function loadAdminView() {
+    // Pre-fetch users and packages for name resolution
+    const [usersData, pkgData] = await Promise.all([
+        GET('/admin/users?page=1&page_size=200'),
+        GET('/subscriptions/packages'),
+    ]);
+    if (usersData?.items) usersData.items.forEach(u => { _adminUserCache[u.id] = u; });
+    if (pkgData) pkgData.forEach(p => { _adminPackageCache[p.id] = p; });
+
+    // Load the active tab (requests by default)
+    loadAdminRequests();
+}
+
+function switchAdminTab(tab, btn) {
+    document.querySelectorAll('.admin-tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`admin-tab-${tab}`).style.display = 'block';
+    btn.classList.add('active');
+    lucide.createIcons();
+    if (tab === 'requests') loadAdminRequests();
+    if (tab === 'users')    loadAdminUsers();
+    if (tab === 'stats')    loadAdminStats();
+    if (tab === 'logs')     loadAdminLogs();
+}
+
+async function loadAdminRequests() {
+    const data = await GET(`/admin/purchase-requests?page=${adminRequestsPage}&page_size=20&status_filter=pending`);
+    const tbody = document.getElementById('adminRequestsBody');
+    if (!data?.items?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Bekleyen paket isteği yok.</td></tr>';
+        document.getElementById('adminPagination').innerHTML = '';
+        return;
+    }
+    tbody.innerHTML = data.items.map(r => {
+        const user = _adminUserCache[r.user_id];
+        const pkg  = _adminPackageCache[r.package_id];
+        return `
+        <tr>
+            <td>
+                <div class="company-cell">
+                    <div class="company-logo">${(user?.full_name||'?')[0].toUpperCase()}</div>
+                    <div>
+                        <div style="font-weight:600;font-size:.88rem">${escHtml(user?.full_name||r.user_id)}</div>
+                        <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(user?.email||'')}</div>
+                    </div>
+                </div>
+            </td>
+            <td><strong>${escHtml(pkg?.name||String(r.package_id))}</strong>
+                ${pkg ? `<div style="font-size:.75rem;color:var(--text-muted)">₺${parseFloat(pkg.price).toLocaleString('tr-TR')}/ay</div>` : ''}
+            </td>
+            <td>${new Date(r.created_at).toLocaleDateString('tr-TR')}</td>
+            <td><span class="tag info">${r.status}</span></td>
+            <td>
+                <div style="display:flex;gap:4px">
+                    <button class="action-btn" title="Onayla" onclick="reviewPurchaseRequest(${r.id},'approved')" style="color:var(--success)">
+                        <i data-lucide="check-circle"></i>
+                    </button>
+                    <button class="action-btn danger-btn" title="Reddet" onclick="reviewPurchaseRequest(${r.id},'rejected')">
+                        <i data-lucide="x-circle"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+    lucide.createIcons();
+    renderPagination('adminPagination', data.page, data.pages, p => {
+        adminRequestsPage = p; loadAdminRequests();
+    });
+}
+
+async function loadAdminUsers() {
+    const data = await GET(`/admin/users?page=${adminUsersPage}&page_size=20`);
+    const tbody = document.getElementById('adminUsersBody');
+    if (!data?.items?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Kullanıcı bulunamadı.</td></tr>';
+        document.getElementById('adminUsersPagination').innerHTML = '';
+        return;
+    }
+    tbody.innerHTML = data.items.map(u => `
+        <tr>
+            <td><div class="company-cell">
+                <div class="company-logo" style="background:${strColor(u.full_name)}">${u.full_name[0].toUpperCase()}</div>
+                <span>${escHtml(u.full_name)}</span>
+            </div></td>
+            <td>${escHtml(u.email)}</td>
+            <td><span class="tag ${u.role==='admin'?'positive':'info'}">${u.role}</span></td>
+            <td>${new Date(u.created_at).toLocaleDateString('tr-TR')}</td>
+            <td>
+                <button class="action-btn danger-btn" title="Kullanıcıyı Sil"
+                    onclick="deleteAdminUser(${u.id},'${escAttr(u.full_name)}')">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    lucide.createIcons();
+    renderPagination('adminUsersPagination', data.page, data.pages, p => {
+        adminUsersPage = p; loadAdminUsers();
+    });
+}
+
+async function deleteAdminUser(id, name) {
+    if (!confirm(`"${name}" kullanıcısını silmek istediğinize emin misiniz?`)) return;
+    const res = await DELETE(`/admin/users/${id}`);
+    if (res?.status === 204) {
+        toast('Kullanıcı silindi.', 'success');
+        loadAdminUsers();
+    } else {
+        const err = await res?.json().catch(() => ({}));
+        toast(err.detail || 'Silme başarısız.', 'error');
+    }
+}
+
+async function loadAdminStats() {
+    const [stats, aiStats] = await Promise.all([
+        GET('/admin/stats/platform'),
+        GET('/admin/stats/ai'),
+    ]);
+    const grid = document.getElementById('adminStatsGrid');
+    if (!stats) { grid.innerHTML = '<p class="text-muted">İstatistikler yüklenemedi.</p>'; return; }
+    grid.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-icon purple"><i data-lucide="users"></i></div>
+            <div class="stat-details">
+                <h3>Kullanıcılar</h3>
+                <p class="stat-value">${stats.users?.total ?? 0}</p>
+                <span class="stat-trend">${stats.users?.active ?? 0} aktif</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><i data-lucide="building-2"></i></div>
+            <div class="stat-details">
+                <h3>Şirketler</h3>
+                <p class="stat-value">${stats.companies?.total ?? 0}</p>
+                <span class="stat-trend">Toplam kayıtlı</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange"><i data-lucide="file-text"></i></div>
+            <div class="stat-details">
+                <h3>Raporlar</h3>
+                <p class="stat-value">${stats.reports?.total ?? 0}</p>
+                <span class="stat-trend">${stats.reports?.ai_generated ?? 0} AI üretimi</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><i data-lucide="credit-card"></i></div>
+            <div class="stat-details">
+                <h3>Aktif Abonelik</h3>
+                <p class="stat-value">${stats.subscriptions?.active ?? 0}</p>
+                <span class="stat-trend">${stats.subscriptions?.pending_purchases ?? 0} bekleyen</span>
+            </div>
+        </div>
+        ${aiStats ? `
+        <div class="stat-card">
+            <div class="stat-icon blue"><i data-lucide="cpu"></i></div>
+            <div class="stat-details">
+                <h3>AI Çağrıları</h3>
+                <p class="stat-value">${aiStats.total_calls ?? 0}</p>
+                <span class="stat-trend">%${aiStats.success_rate ?? 0} başarı</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange"><i data-lucide="zap"></i></div>
+            <div class="stat-details">
+                <h3>Toplam Token</h3>
+                <p class="stat-value">${(aiStats.total_tokens_used ?? 0).toLocaleString('tr-TR')}</p>
+                <span class="stat-trend">Ort. ${aiStats.avg_duration_ms ?? 0} ms</span>
+            </div>
+        </div>` : ''}
+    `;
+    lucide.createIcons();
+}
+
+async function loadAdminLogs() {
+    const data = await GET(`/admin/logs/audit?page=${adminLogsPage}&page_size=30`);
+    const tbody = document.getElementById('adminLogsBody');
+    if (!data?.items?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Log bulunamadı.</td></tr>';
+        document.getElementById('adminLogsPagination').innerHTML = '';
+        return;
+    }
+    tbody.innerHTML = data.items.map(l => `
+        <tr>
+            <td style="font-size:.78rem;white-space:nowrap">${l.timestamp ? new Date(l.timestamp).toLocaleString('tr-TR') : '—'}</td>
+            <td style="font-size:.82rem">${escHtml(String(l.user_id||'—'))}</td>
+            <td><span class="tag info" style="font-size:.72rem">${escHtml(l.action||'—')}</span></td>
+            <td style="font-size:.82rem">${escHtml(l.resource_type||'—')}</td>
+            <td style="font-size:.75rem;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                ${escHtml(l.details||'')}
+            </td>
+        </tr>
+    `).join('');
+    lucide.createIcons();
+    renderPagination('adminLogsPagination', data.page, data.pages, p => {
+        adminLogsPage = p; loadAdminLogs();
+    });
+}
+
+async function reviewPurchaseRequest(id, status) {
+    if (!confirm(`Talebi ${status === 'approved' ? 'onaylamak' : 'reddetmek'} istediğinize emin misiniz?`)) return;
+    const res = await POST(`/admin/purchase-requests/${id}/review`, { status: status, admin_note: '' });
+    if (res && res.ok) {
+        toast(`Talep ${status === 'approved' ? 'onaylandı' : 'reddedildi'}.`, 'success');
+        loadAdminView();
+    } else {
+        const err = await res?.json().catch(() => ({}));
+        toast(err.detail || 'İşlem başarısız.', 'error');
     }
 }
 
@@ -938,6 +1188,42 @@ function strColor(str) {
     return `hsl(${Math.abs(h)%360},45%,35%)`;
 }
 
+// ─── Premium Modal ─────────────────────────────────────────────────
+async function showPremiumModal() {
+    document.getElementById('premiumModal').classList.add('active');
+    lucide.createIcons();
+    const packages = await GET('/subscriptions/packages');
+    const grid = document.getElementById('premiumPackagesGrid');
+    if (!packages?.length) { grid.innerHTML = '<p class="text-muted">Paket bulunamadı.</p>'; return; }
+    grid.innerHTML = packages.map(p => `
+        <div class="package-card">
+            <h3>${escHtml(p.name)}</h3>
+            <p class="package-price">₺${parseFloat(p.price).toLocaleString('tr-TR')}<span> /ay</span></p>
+            <p class="package-desc">${escHtml(p.description||'')}</p>
+            <ul class="package-features">
+                <li><i data-lucide="check"></i> ${p.max_companies} şirket</li>
+                <li><i data-lucide="check"></i> ${p.max_reports_per_month} rapor/ay</li>
+                <li><i data-lucide="check"></i> ${p.max_ai_calls_per_month} AI çağrı/ay</li>
+                ${p.features?.ocr ? '<li><i data-lucide="check"></i> OCR Destekli</li>' : ''}
+            </ul>
+            <button class="btn-primary full-width"
+                onclick="requestPurchase(${p.id},'${escAttr(p.name)}');closeModal('premiumModal')">
+                <i data-lucide="shopping-cart"></i> Talep Oluştur
+            </button>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+// ─── Dark Mode Toggle (O2) ─────────────────────────────────────────
+function toggleDarkMode() {
+    const isLight = document.body.classList.toggle('light-mode');
+    const btn = document.getElementById('darkModeBtn');
+    btn.innerHTML = isLight ? '<i data-lucide="moon"></i>' : '<i data-lucide="sun"></i>';
+    localStorage.setItem('sf_theme', isLight ? 'light' : 'dark');
+    lucide.createIcons();
+}
+
 // ─── Click-outside kapanma ─────────────────────────────────────────
 document.addEventListener('click', e => {
     // Bildirim paneli
@@ -957,6 +1243,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── Uygulama Başlat ───────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // Restore theme preference
+    if (localStorage.getItem('sf_theme') === 'light') {
+        document.body.classList.add('light-mode');
+        const btn = document.getElementById('darkModeBtn');
+        if (btn) { btn.innerHTML = '<i data-lucide="moon"></i>'; }
+    }
+
     if (Token.access && Token.user) {
         // Token'ı API ile doğrula
         fetch(`${API_BASE}/auth/me`, {
