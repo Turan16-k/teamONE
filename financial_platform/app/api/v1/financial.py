@@ -25,6 +25,8 @@ from app.schemas.financial import FinancialReportCreate, FinancialReportUpdate, 
 from app.core.rbac import require_owner_or_admin
 from app.services.ai_service import ai_service
 from app.services.pptx_service import pptx_service
+from app.services import report_generator
+from app.models.extended import CompanyBank, Collection, CompanyProject, Investment
 from app.services.notification_service import notify_user_report_ready
 from app.utils.logging import log_audit, log_exception
 from app.utils.pagination import PaginationParams, paginate
@@ -247,29 +249,35 @@ def trigger_ai_analysis(
 
     _check_and_increment_ai_quota(current_user, db)
 
+    def _to_float(val):
+        try:
+            return float(val) if val is not None else None
+        except (TypeError, ValueError):
+            return None
+
     financial_data = {
         "balance_sheet": {
-            "total_current_assets": str(report.total_current_assets) if report.total_current_assets else None,
-            "total_non_current_assets": str(report.total_non_current_assets) if report.total_non_current_assets else None,
-            "total_assets": str(report.total_assets) if report.total_assets else None,
-            "total_current_liabilities": str(report.total_current_liabilities) if report.total_current_liabilities else None,
-            "total_non_current_liabilities": str(report.total_non_current_liabilities) if report.total_non_current_liabilities else None,
-            "total_liabilities": str(report.total_liabilities) if report.total_liabilities else None,
-            "total_equity": str(report.total_equity) if report.total_equity else None,
-            "inventory": str(report.inventory) if report.inventory else None,
-            "cash_and_equivalents": str(report.cash_and_equivalents) if report.cash_and_equivalents else None,
+            "total_current_assets": _to_float(report.total_current_assets),
+            "total_non_current_assets": _to_float(report.total_non_current_assets),
+            "total_assets": _to_float(report.total_assets),
+            "total_current_liabilities": _to_float(report.total_current_liabilities),
+            "total_non_current_liabilities": _to_float(report.total_non_current_liabilities),
+            "total_liabilities": _to_float(report.total_liabilities),
+            "total_equity": _to_float(report.total_equity),
+            "inventory": _to_float(report.inventory),
+            "cash_and_equivalents": _to_float(report.cash_and_equivalents),
         },
         "income_statement": {
-            "revenue": str(report.revenue) if report.revenue else None,
-            "gross_profit": str(report.gross_profit) if report.gross_profit else None,
-            "ebitda": str(report.ebitda) if report.ebitda else None,
-            "ebit": str(report.ebit) if report.ebit else None,
-            "interest_expense": str(report.interest_expense) if report.interest_expense else None,
-            "net_income": str(report.net_income) if report.net_income else None,
+            "revenue": _to_float(report.revenue),
+            "gross_profit": _to_float(report.gross_profit),
+            "ebitda": _to_float(report.ebitda),
+            "ebit": _to_float(report.ebit),
+            "interest_expense": _to_float(report.interest_expense),
+            "net_income": _to_float(report.net_income),
         },
         "cash_flow": {
-            "operating_cash_flow": str(report.operating_cash_flow) if report.operating_cash_flow else None,
-            "free_cash_flow": str(report.free_cash_flow) if report.free_cash_flow else None,
+            "operating_cash_flow": _to_float(report.operating_cash_flow),
+            "free_cash_flow": _to_float(report.free_cash_flow),
         },
     }
 
@@ -419,6 +427,115 @@ def export_pptx(
     return StreamingResponse(
         io.BytesIO(pptx_bytes),
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": _safe_cd_header(raw_name)},
+    )
+
+
+@router.get("/reports/{report_id}/export/pdf")
+def export_pdf(
+    report_id: int,
+    currency: str = Query("TRY", max_length=3),
+    with_ai: bool = Query(True, description="AI anlatı metni ekle (ek AI kotası kullanır)"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """Kapsamlı görsel PDF raporu: tablolar, grafikler ve AI yorumları."""
+    if currency not in _ALLOWED_CURRENCIES:
+        raise HTTPException(status_code=400, detail="Geçersiz para birimi.")
+
+    report = (
+        db.query(FinancialReport)
+        .options(joinedload(FinancialReport.company))
+        .filter(FinancialReport.id == report_id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Rapor bulunamadı.")
+    require_owner_or_admin(report.company.owner_id, current_user)
+
+    company_id = report.company_id
+
+    # Genişletilmiş verileri yükle
+    banks       = db.query(CompanyBank).filter(CompanyBank.company_id == company_id).all()
+    collections = db.query(Collection).filter(Collection.company_id == company_id).all()
+    projects    = db.query(CompanyProject).filter(CompanyProject.company_id == company_id).all()
+    investments = db.query(Investment).filter(Investment.company_id == company_id).all()
+
+    # AI anlatı metni üret (isteğe bağlı, kota kullanır)
+    ai_narrative: Optional[dict] = None
+    if with_ai:
+        try:
+            _check_and_increment_ai_quota(current_user, db)
+            def _f(v):
+                try:
+                    return float(v) if v is not None else None
+                except (TypeError, ValueError):
+                    return None
+
+            narrative_data = {
+                "company": report.company.name,
+                "fiscal_year": report.fiscal_year,
+                "period": report.period.value,
+                "balance_sheet": {
+                    "total_assets":               _f(report.total_assets),
+                    "total_current_assets":       _f(report.total_current_assets),
+                    "total_non_current_assets":   _f(report.total_non_current_assets),
+                    "total_current_liabilities":  _f(report.total_current_liabilities),
+                    "total_non_current_liabilities": _f(report.total_non_current_liabilities),
+                    "total_liabilities":          _f(report.total_liabilities),
+                    "total_equity":               _f(report.total_equity),
+                    "cash_and_equivalents":       _f(report.cash_and_equivalents),
+                    "accounts_receivable":        _f(report.accounts_receivable),
+                    "inventory":                  _f(report.inventory),
+                },
+                "income_statement": {
+                    "revenue":          _f(report.revenue),
+                    "gross_profit":     _f(report.gross_profit),
+                    "ebitda":           _f(report.ebitda),
+                    "ebit":             _f(report.ebit),
+                    "interest_expense": _f(report.interest_expense),
+                    "net_income":       _f(report.net_income),
+                },
+                "cash_flow": {
+                    "operating_cash_flow":  _f(report.operating_cash_flow),
+                    "investing_cash_flow":  _f(report.investing_cash_flow),
+                    "financing_cash_flow":  _f(report.financing_cash_flow),
+                    "free_cash_flow":       _f(report.free_cash_flow),
+                },
+                "ai_ratios": report.ai_ratios or {},
+            }
+            ai_narrative = ai_service.generate_report_narrative(
+                narrative_data, db, current_user.id
+            )
+        except HTTPException:
+            pass  # kota aşıldıysa anlatısız devam et
+        except Exception:
+            pass
+
+    log_audit(db, current_user.id, LogAction.EXPORT, "FinancialReport", report_id,
+              new_values={"format": "pdf"})
+    db.commit()
+
+    try:
+        pdf_bytes = report_generator.generate_pdf_report(
+            report=report,
+            company=report.company,
+            banks=banks or None,
+            collections=collections or None,
+            projects=projects or None,
+            investments=investments or None,
+            ai_ratios=report.ai_ratios,
+            ai_narrative=ai_narrative,
+            currency=currency,
+        )
+    except Exception as exc:
+        user_msg = log_exception(exc, {"report_id": report_id})
+        raise HTTPException(status_code=500, detail=user_msg)
+
+    raw_name = f"{report.company.name}_{report.fiscal_year}_{report.period.value}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
         headers={"Content-Disposition": _safe_cd_header(raw_name)},
     )
 

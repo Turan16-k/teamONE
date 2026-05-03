@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -98,6 +99,10 @@
                onclick="switchView('reports',this)">
                 <i data-lucide="file-text"></i><span>Finansal Raporlar</span>
             </a>
+            <a href="javascript:void(0)" class="nav-item" data-view="firmalarimiz"
+               onclick="switchView('firmalarimiz',this)">
+                <i data-lucide="briefcase"></i><span>Firmalarımız</span>
+            </a>
             <a href="javascript:void(0)" class="nav-item" data-view="subscription"
                onclick="switchView('subscription',this)">
                 <i data-lucide="credit-card"></i><span>Abonelik</span>
@@ -138,7 +143,6 @@
                         <i data-lucide="bell"></i>
                         <span class="badge" id="notifBadge" style="display:none"></span>
                     </button>
-                    <!-- Bildirim Paneli -->
                     <div id="notifPanel" class="notif-panel" style="display:none">
                         <div class="notif-header">
                             <span>Bildirimler</span>
@@ -159,7 +163,7 @@
         <div id="view-dashboard">
             <section class="dashboard-hero">
                 <h1>Finansal Verilerinizi <span class="gradient-text">Zekaya</span> Dönüştürün</h1>
-                <p>Gemini 1.5 Pro destekli OCR ve finansal analiz motoruyla saniyeler içinde raporlarınızı hazırlayın.</p>
+                <p>Gemini AI destekli OCR ve finansal analiz motoruyla saniyeler içinde raporlarınızı hazırlayın.</p>
             </section>
 
             <div class="stats-grid">
@@ -214,7 +218,9 @@
                                 </tr>
                             </thead>
                             <tbody id="recentReportsBody">
-                                <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                                <tr><td colspan="5"><div class="skeleton-row"></div></td></tr>
+                                <tr><td colspan="5"><div class="skeleton-row"></div></td></tr>
+                                <tr><td colspan="5"><div class="skeleton-row"></div></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -226,13 +232,13 @@
                         <i data-lucide="credit-card" class="sparkle-icon"></i>
                     </div>
                     <div class="insight-content" id="subscriptionWidget">
-                        <p class="text-muted">Yükleniyor...</p>
+                        <div class="skeleton-block"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ====== ŞİRKETLER ====== -->
+        <!-- ====== ŞİRKETLER LİSTESİ ====== -->
         <div id="view-companies" style="display:none">
             <div class="view-header">
                 <h2>Şirketlerim</h2>
@@ -252,15 +258,303 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Şirket</th><th>Vergi No</th><th>Sektör</th><th>Kayıt Tarihi</th><th>Aksiyon</th>
+                                <th>Şirket</th><th>Vergi No</th><th>Sektör</th><th>Sözleşme Bitiş</th><th>Kayıt Tarihi</th><th>Aksiyon</th>
                             </tr>
                         </thead>
                         <tbody id="companiesBody">
-                            <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+                            <tr><td colspan="6"><div class="skeleton-row"></div></td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div id="companiesPagination" class="pagination"></div>
+            </div>
+        </div>
+
+        <!-- ====== ŞİRKET DETAY (sekmeli) ====== -->
+        <div id="view-company-detail" style="display:none">
+            <div class="view-header">
+                <button class="btn-secondary" onclick="switchView('companies', document.querySelector('[data-view=companies]'))">
+                    <i data-lucide="arrow-left"></i> Geri
+                </button>
+                <h2 id="detailCompanyName">—</h2>
+                <div style="display:flex;gap:8px">
+                    <button class="btn-secondary" onclick="openUploadModal(currentCompanyId)">
+                        <i data-lucide="upload-cloud"></i> Belge Yükle
+                    </button>
+                </div>
+            </div>
+
+            <div class="company-detail-tabs">
+                <button class="cd-tab active" onclick="switchCompanyTab('info', this)">
+                    <i data-lucide="info"></i> Temel Bilgiler
+                </button>
+                <button class="cd-tab" onclick="switchCompanyTab('findurum', this)">
+                    <i data-lucide="bar-chart-3"></i> Finansal Durum
+                </button>
+                <button class="cd-tab" onclick="switchCompanyTab('reports', this)">
+                    <i data-lucide="file-text"></i> Finansal Raporlar
+                </button>
+                <button class="cd-tab" onclick="switchCompanyTab('yatirim', this)">
+                    <i data-lucide="trending-up"></i> Yatırım
+                </button>
+                <button class="cd-tab" onclick="switchCompanyTab('presentation', this)">
+                    <i data-lucide="presentation"></i> Ön Sunum
+                </button>
+            </div>
+
+            <!-- Tab: Temel Bilgiler -->
+            <div id="cd-tab-info" class="cd-tab-pane">
+                <div class="card" style="margin-top:1rem">
+                    <div class="card-header">
+                        <h3>Firma Bilgileri</h3>
+                        <button class="btn-primary" id="saveCompanyInfoBtn" onclick="saveCompanyInfo()">
+                            <i data-lucide="save"></i> Kaydet
+                        </button>
+                    </div>
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label>Şirket Adı *</label>
+                            <input type="text" id="ci_name" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Vergi Numarası</label>
+                            <input type="text" id="ci_tax_id" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Ticaret Sicil No</label>
+                            <input type="text" id="ci_trade_reg" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Sektör</label>
+                            <input type="text" id="ci_sector" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Kuruluş Tarihi</label>
+                            <input type="date" id="ci_founding" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Yetkili Kişi</label>
+                            <input type="text" id="ci_person" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>İletişim Telefonu</label>
+                            <input type="text" id="ci_phone" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>İletişim E-posta</label>
+                            <input type="email" id="ci_email" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Yıllık Ciro (Tahmini)</label>
+                            <input type="number" id="ci_rev_est" class="filter-select full-width" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Yıllık Ciro (Gerçekleşen)</label>
+                            <input type="number" id="ci_rev_act" class="filter-select full-width" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Sözleşme Bedeli</label>
+                            <input type="number" id="ci_contract_amt" class="filter-select full-width" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Sözleşme Türü</label>
+                            <select id="ci_contract_type" class="filter-select full-width">
+                                <option value="">Seçiniz...</option>
+                                <option value="report">Rapor</option>
+                                <option value="analysis">Analiz</option>
+                                <option value="system">Sistem</option>
+                                <option value="other">Diğer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sözleşme Başlangıç</label>
+                            <input type="date" id="ci_contract_start" class="filter-select full-width">
+                        </div>
+                        <div class="form-group">
+                            <label>Sözleşme Bitiş</label>
+                            <input type="date" id="ci_contract_end" class="filter-select full-width">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:1rem">
+                        <label>Kayıtlı Adres</label>
+                        <textarea id="ci_address" class="filter-select full-width" rows="2" placeholder="Tam adres..."></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top:1rem">
+                        <label>Açıklama</label>
+                        <textarea id="ci_desc" class="filter-select full-width" rows="2" placeholder="Firma hakkında..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Finansal Durum -->
+            <div id="cd-tab-findurum" class="cd-tab-pane" style="display:none">
+                <div class="fin-status-grid">
+                    <!-- Özet kartlar -->
+                    <div id="finStatusSummary" class="fin-status-summary">
+                        <div class="skeleton-block"></div>
+                    </div>
+
+                    <!-- Bankalar -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i data-lucide="landmark" style="width:18px;vertical-align:middle;margin-right:6px"></i>Bankalar</h3>
+                            <button class="btn-primary" style="padding:6px 12px;font-size:.82rem"
+                                onclick="openBankModal()">
+                                <i data-lucide="plus"></i> Ekle
+                            </button>
+                        </div>
+                        <div id="banksContainer">
+                            <div class="empty-state"><i data-lucide="landmark"></i><p>Banka kaydı yok</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Tahsilat -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i data-lucide="receipt" style="width:18px;vertical-align:middle;margin-right:6px"></i>Tahsilat Durumu</h3>
+                            <button class="btn-primary" style="padding:6px 12px;font-size:.82rem"
+                                onclick="openCollectionModal()">
+                                <i data-lucide="plus"></i> Ekle
+                            </button>
+                        </div>
+                        <div class="admin-tabs-bar" style="margin-bottom:1rem">
+                            <button class="admin-tab-btn active" onclick="switchCollTab('pending',this)">Bekleyen</button>
+                            <button class="admin-tab-btn" onclick="switchCollTab('completed',this)">Yapılan</button>
+                        </div>
+                        <div id="collectionsContainer">
+                            <div class="empty-state"><i data-lucide="receipt"></i><p>Tahsilat kaydı yok</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Projeler -->
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header">
+                            <h3><i data-lucide="folder-kanban" style="width:18px;vertical-align:middle;margin-right:6px"></i>Devam Eden / Biten İşler</h3>
+                            <button class="btn-primary" style="padding:6px 12px;font-size:.82rem"
+                                onclick="openProjectModal()">
+                                <i data-lucide="plus"></i> Ekle
+                            </button>
+                        </div>
+                        <div id="projectsContainer">
+                            <div class="empty-state"><i data-lucide="folder-kanban"></i><p>Proje kaydı yok</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Finansal Raporlar -->
+            <div id="cd-tab-reports" class="cd-tab-pane" style="display:none">
+                <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap">
+                    <select id="cdFilterYear" onchange="loadCompanyReports()" class="filter-select">
+                        <option value="">Tüm Yıllar</option>
+                    </select>
+                    <select id="cdFilterType" onchange="loadCompanyReports()" class="filter-select">
+                        <option value="">Tüm Türler</option>
+                        <option value="balance_sheet">Bilanço</option>
+                        <option value="income_statement">Gelir Tablosu</option>
+                        <option value="cash_flow">Nakit Akışı</option>
+                        <option value="combined">Kombine</option>
+                    </select>
+                </div>
+                <div class="card" style="margin-top:1rem">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Yıl</th><th>Tür</th><th>Dönem</th><th>AI</th><th>Skor</th><th>Aksiyonlar</th></tr>
+                            </thead>
+                            <tbody id="cdReportsBody">
+                                <tr><td colspan="6" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Yatırım -->
+            <div id="cd-tab-yatirim" class="cd-tab-pane" style="display:none">
+                <!-- Özet + grafik -->
+                <div class="inv-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Portföy Özeti</h3>
+                        </div>
+                        <div id="invSummaryCards" class="inv-summary-cards">
+                            <div class="skeleton-block"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Sektörel Dağılım</h3>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="invPieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header">
+                            <h3>Yatırımlar</h3>
+                            <button class="btn-primary" style="padding:6px 12px;font-size:.82rem"
+                                onclick="openInvestmentModal()">
+                                <i data-lucide="plus"></i> Ekle
+                            </button>
+                        </div>
+                        <div id="investmentsContainer">
+                            <div class="empty-state"><i data-lucide="trending-up"></i><p>Yatırım kaydı yok</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Ön Sunum -->
+            <div id="cd-tab-presentation" class="cd-tab-pane" style="display:none">
+                <div class="card" style="margin-top:1rem">
+                    <div class="card-header">
+                        <h3><i data-lucide="presentation" style="width:18px;vertical-align:middle;margin-right:6px"></i>Ön Sunum Oluştur</h3>
+                    </div>
+                    <p style="color:var(--text-muted);margin-bottom:1.5rem">Seçilen rapora ait verileri AI destekli sunum şablonuna dönüştürün.</p>
+                    <div class="form-group" style="max-width:400px">
+                        <label>Rapor Seç</label>
+                        <select id="presentReportSel" class="filter-select full-width">
+                            <option value="">Rapor seçin...</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1.5rem">
+                        <button class="btn-primary" onclick="downloadPdfFromDetail()" style="background:#C62828;border-color:#C62828">
+                            <i data-lucide="file-text"></i> PDF Raporu İndir
+                        </button>
+                        <button class="btn-primary" onclick="downloadPptxFromDetail()">
+                            <i data-lucide="presentation"></i> PPTX İndir
+                        </button>
+                        <button class="btn-secondary" onclick="downloadExcelFromDetail()">
+                            <i data-lucide="file-spreadsheet"></i> Excel İndir
+                        </button>
+                        <button class="btn-secondary" onclick="downloadCsvFromDetail()">
+                            <i data-lucide="download"></i> CSV İndir
+                        </button>
+                    </div>
+                    <!-- Grafik önizleme -->
+                    <div id="presentCharts" style="margin-top:2rem;display:none">
+                        <h4 style="margin-bottom:1rem;color:var(--text-main)">Finansal Özet Grafikleri</h4>
+                        <div class="charts-grid">
+                            <div class="card chart-card">
+                                <h5>Gelir – Net Kâr</h5>
+                                <div class="chart-wrap"><canvas id="incomeChart"></canvas></div>
+                            </div>
+                            <div class="card chart-card">
+                                <h5>Nakit Akışı</h5>
+                                <div class="chart-wrap"><canvas id="cashflowChart"></canvas></div>
+                            </div>
+                            <div class="card chart-card">
+                                <h5>Varlık Yapısı</h5>
+                                <div class="chart-wrap"><canvas id="assetsChart"></canvas></div>
+                            </div>
+                            <div class="card chart-card">
+                                <h5>Borç / Öz Kaynak</h5>
+                                <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -299,15 +593,93 @@
             </div>
         </div>
 
+        <!-- ====== FİRMALARIMIZ / MALİ YAPIMIZ ====== -->
+        <div id="view-firmalarimiz" style="display:none">
+            <div class="view-header">
+                <h2>Firmalarımız / Mali Yapımız</h2>
+            </div>
+
+            <div class="admin-tabs-bar">
+                <button class="admin-tab-btn active" onclick="switchFirmTab('contracts', this)">
+                    <i data-lucide="file-signature"></i> Sözleşmeler
+                </button>
+                <button class="admin-tab-btn" onclick="switchFirmTab('abonelik', this)">
+                    <i data-lucide="credit-card"></i> Abonelik & Faturalandırma
+                </button>
+                <button class="admin-tab-btn" onclick="switchFirmTab('surec', this)">
+                    <i data-lucide="activity"></i> Finansal Süreç
+                </button>
+            </div>
+
+            <!-- Sözleşmeler -->
+            <div id="firm-tab-contracts" class="admin-tab-pane">
+                <div class="card" style="margin-top:1rem">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Şirket</th><th>Sektör</th><th>Tür</th><th>Sözleşme Bedeli</th>
+                                    <th>Başlangıç</th><th>Bitiş</th><th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contractsBody">
+                                <tr><td colspan="7" class="text-center text-muted">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Abonelik & Faturalandırma -->
+            <div id="firm-tab-abonelik" class="admin-tab-pane" style="display:none">
+                <div class="card" style="margin-top:1rem">
+                    <div class="card-header">
+                        <h3>Mevcut Abonelik</h3>
+                    </div>
+                    <div id="firmSubContent" style="padding:1rem">
+                        <div class="skeleton-block"></div>
+                    </div>
+                </div>
+                <h3 style="margin:1.5rem 0 1rem;font-family:'Outfit',sans-serif">Paketler</h3>
+                <div id="firmPackagesGrid" class="packages-grid">
+                    <div class="skeleton-block"></div>
+                </div>
+            </div>
+
+            <!-- Finansal Süreç -->
+            <div id="firm-tab-surec" class="admin-tab-pane" style="display:none">
+                <div class="surec-grid" style="margin-top:1rem">
+                    <div class="card">
+                        <div class="card-header"><h3>Bekleyen Tahsilatlar</h3></div>
+                        <div id="surecPendingList">
+                            <div class="skeleton-block"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Yapılan Tahsilatlar</h3></div>
+                        <div id="surecCompletedList">
+                            <div class="skeleton-block"></div>
+                        </div>
+                    </div>
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header"><h3>Tahsilat Özeti Grafiği</h3></div>
+                        <div class="chart-wrap" style="max-height:260px">
+                            <canvas id="surecBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ====== ABONELİK ====== -->
         <div id="view-subscription" style="display:none">
             <div class="view-header"><h2>Abonelik & Paketler</h2></div>
             <div id="currentSubCard" class="card sub-status-card" style="margin-bottom:1.5rem">
-                <p class="text-muted">Yükleniyor...</p>
+                <div class="skeleton-block"></div>
             </div>
             <h3 style="margin-bottom:1rem; font-family:'Outfit',sans-serif">Mevcut Paketler</h3>
             <div id="packagesGrid" class="packages-grid">
-                <p class="text-muted">Yükleniyor...</p>
+                <div class="skeleton-block"></div>
             </div>
         </div>
 
@@ -333,14 +705,11 @@
                 </button>
             </div>
 
-            <!-- Tab: Purchase Requests -->
             <div id="admin-tab-requests" class="admin-tab-pane">
                 <div class="card" style="margin-top:1rem">
                     <div class="table-container">
                         <table>
-                            <thead>
-                                <tr><th>Kullanıcı</th><th>Paket</th><th>Tarih</th><th>Durum</th><th>Aksiyonlar</th></tr>
-                            </thead>
+                            <thead><tr><th>Kullanıcı</th><th>Paket</th><th>Tarih</th><th>Durum</th><th>Aksiyonlar</th></tr></thead>
                             <tbody id="adminRequestsBody">
                                 <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
                             </tbody>
@@ -350,14 +719,11 @@
                 </div>
             </div>
 
-            <!-- Tab: Users -->
             <div id="admin-tab-users" class="admin-tab-pane" style="display:none">
                 <div class="card" style="margin-top:1rem">
                     <div class="table-container">
                         <table>
-                            <thead>
-                                <tr><th>Ad Soyad</th><th>E-posta</th><th>Rol</th><th>Kayıt Tarihi</th><th>Aksiyonlar</th></tr>
-                            </thead>
+                            <thead><tr><th>Ad Soyad</th><th>E-posta</th><th>Rol</th><th>Kayıt Tarihi</th><th>Aksiyonlar</th></tr></thead>
                             <tbody id="adminUsersBody">
                                 <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
                             </tbody>
@@ -367,21 +733,17 @@
                 </div>
             </div>
 
-            <!-- Tab: Platform Stats -->
             <div id="admin-tab-stats" class="admin-tab-pane" style="display:none">
                 <div id="adminStatsGrid" class="stats-grid" style="margin-top:1rem">
-                    <p class="text-muted">Yükleniyor...</p>
+                    <div class="skeleton-block"></div>
                 </div>
             </div>
 
-            <!-- Tab: Audit Logs -->
             <div id="admin-tab-logs" class="admin-tab-pane" style="display:none">
                 <div class="card" style="margin-top:1rem">
                     <div class="table-container">
                         <table>
-                            <thead>
-                                <tr><th>Zaman</th><th>Kullanıcı</th><th>Aksiyon</th><th>Kaynak</th><th>Detay</th></tr>
-                            </thead>
+                            <thead><tr><th>Zaman</th><th>Kullanıcı</th><th>Aksiyon</th><th>Kaynak</th><th>Detay</th></tr></thead>
                             <tbody id="adminLogsBody">
                                 <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
                             </tbody>
@@ -411,8 +773,7 @@
         </div>
         <div class="form-group">
             <label>Mali Yıl *</label>
-            <input type="number" id="uploadFiscalYear" class="filter-select full-width"
-                   min="2000" max="2099">
+            <input type="number" id="uploadFiscalYear" class="filter-select full-width" min="2000" max="2099">
         </div>
         <div class="upload-area" id="dropZone">
             <i data-lucide="upload-cloud"></i>
@@ -436,29 +797,47 @@
 
 <!-- Şirket Oluştur Modal -->
 <div id="createCompanyModal" class="modal" onclick="modalBackdropClose(event,'createCompanyModal')">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:560px">
         <div class="modal-header">
             <h2>Yeni Şirket Ekle</h2>
             <button class="close-modal" onclick="closeModal('createCompanyModal')">&times;</button>
         </div>
         <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
-            <div class="form-group">
-                <label>Şirket Adı *</label>
-                <input type="text" id="newCompanyName" class="filter-select full-width" required>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Şirket Adı *</label>
+                    <input type="text" id="newCompanyName" class="filter-select full-width" required>
+                </div>
+                <div class="form-group">
+                    <label>Vergi Numarası</label>
+                    <input type="text" id="newCompanyTaxId" class="filter-select full-width" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Sektör</label>
+                    <input type="text" id="newCompanySector" class="filter-select full-width" placeholder="Teknoloji, İnşaat...">
+                </div>
+                <div class="form-group">
+                    <label>Yetkili Kişi</label>
+                    <input type="text" id="newCompanyPerson" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Sözleşme Türü</label>
+                    <select id="newCompanyContractType" class="filter-select full-width">
+                        <option value="">Seçiniz...</option>
+                        <option value="report">Rapor</option>
+                        <option value="analysis">Analiz</option>
+                        <option value="system">Sistem</option>
+                        <option value="other">Diğer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sözleşme Bedeli</label>
+                    <input type="number" id="newCompanyContractAmt" class="filter-select full-width" step="0.01">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Vergi Numarası</label>
-                <input type="text" id="newCompanyTaxId" class="filter-select full-width" maxlength="20">
-            </div>
-            <div class="form-group">
-                <label>Sektör</label>
-                <input type="text" id="newCompanySector" class="filter-select full-width"
-                       placeholder="Teknoloji, İnşaat, Finans...">
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-top:.5rem">
                 <label>Açıklama</label>
-                <textarea id="newCompanyDesc" class="filter-select full-width" rows="2"
-                          placeholder="İsteğe bağlı..."></textarea>
+                <textarea id="newCompanyDesc" class="filter-select full-width" rows="2" placeholder="İsteğe bağlı..."></textarea>
             </div>
             <p id="companyError" class="auth-error"></p>
             <div class="modal-footer">
@@ -481,17 +860,13 @@
         <form onsubmit="handleChangePassword(event)">
             <div class="form-group">
                 <label>Mevcut Şifre</label>
-                <div class="input-icon-wrap">
-                    <i data-lucide="lock"></i>
-                    <input type="password" id="currentPassword" required>
-                </div>
+                <div class="input-icon-wrap"><i data-lucide="lock"></i>
+                    <input type="password" id="currentPassword" required></div>
             </div>
             <div class="form-group">
                 <label>Yeni Şifre</label>
-                <div class="input-icon-wrap">
-                    <i data-lucide="key"></i>
-                    <input type="password" id="newPassword" minlength="8" required>
-                </div>
+                <div class="input-icon-wrap"><i data-lucide="key"></i>
+                    <input type="password" id="newPassword" minlength="8" required></div>
             </div>
             <p id="pwError" class="auth-error"></p>
             <div class="modal-footer">
@@ -502,24 +877,22 @@
     </div>
 </div>
 
-<!-- Rapor Düzenle Modal (T8) -->
+<!-- Rapor Düzenle Modal -->
 <div id="editReportModal" class="modal" onclick="modalBackdropClose(event,'editReportModal')">
     <div class="modal-content" style="max-width:680px;max-height:90vh;overflow-y:auto">
         <div class="modal-header">
-            <h2><i data-lucide="edit-3" style="width:20px;vertical-align:middle;margin-right:8px"></i>Rapor Düzenle <span id="editReportTitle" style="font-size:.9rem;color:var(--text-muted)"></span></h2>
+            <h2><i data-lucide="edit-3" style="width:20px;vertical-align:middle;margin-right:8px"></i>Rapor Düzenle
+                <span id="editReportTitle" style="font-size:.9rem;color:var(--text-muted)"></span></h2>
             <button class="close-modal" onclick="closeModal('editReportModal')">&times;</button>
         </div>
         <form id="editReportForm" onsubmit="handleEditReport(event)">
             <input type="hidden" id="editReportId">
-
             <div class="edit-tabs" style="display:flex;gap:4px;background:var(--bg-dark);border-radius:10px;padding:4px;margin-bottom:1.5rem">
                 <button type="button" class="edit-tab-btn active" onclick="switchEditTab('balance',this)">Bilanço</button>
                 <button type="button" class="edit-tab-btn" onclick="switchEditTab('income',this)">Gelir Tablosu</button>
                 <button type="button" class="edit-tab-btn" onclick="switchEditTab('cashflow',this)">Nakit Akışı</button>
                 <button type="button" class="edit-tab-btn" onclick="switchEditTab('notes',this)">Notlar</button>
             </div>
-
-            <!-- Balance Sheet -->
             <div id="edit-tab-balance" class="edit-tab-pane">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
                     <div class="form-group"><label>Nakit ve Eşdeğerleri</label>
@@ -544,8 +917,6 @@
                         <input type="number" step="0.01" id="ef_equity" class="filter-select full-width" placeholder="0.00"></div>
                 </div>
             </div>
-
-            <!-- Income Statement -->
             <div id="edit-tab-income" class="edit-tab-pane" style="display:none">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
                     <div class="form-group"><label>Gelir (Ciro)</label>
@@ -570,8 +941,6 @@
                         <input type="number" step="0.01" id="ef_net_income" class="filter-select full-width" placeholder="0.00"></div>
                 </div>
             </div>
-
-            <!-- Cash Flow -->
             <div id="edit-tab-cashflow" class="edit-tab-pane" style="display:none">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
                     <div class="form-group"><label>Operasyonel Nakit Akışı</label>
@@ -586,8 +955,6 @@
                         <input type="number" step="0.01" id="ef_net_cash" class="filter-select full-width" placeholder="0.00"></div>
                 </div>
             </div>
-
-            <!-- Notes -->
             <div id="edit-tab-notes" class="edit-tab-pane" style="display:none">
                 <div class="form-group">
                     <label>Notlar</label>
@@ -600,7 +967,6 @@
                     </label>
                 </div>
             </div>
-
             <p id="editReportError" class="auth-error" style="margin-top:.5rem"></p>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeModal('editReportModal')">İptal</button>
@@ -612,7 +978,231 @@
     </div>
 </div>
 
-<!-- Premium Modal (T6/T7) -->
+<!-- Banka Modal -->
+<div id="bankModal" class="modal" onclick="modalBackdropClose(event,'bankModal')">
+    <div class="modal-content" style="max-width:480px">
+        <div class="modal-header">
+            <h2 id="bankModalTitle">Banka Ekle</h2>
+            <button class="close-modal" onclick="closeModal('bankModal')">&times;</button>
+        </div>
+        <form id="bankForm" onsubmit="saveBankForm(event)">
+            <input type="hidden" id="bankEditId">
+            <div class="form-grid-2">
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Banka Adı *</label>
+                    <input type="text" id="bk_name" class="filter-select full-width" required placeholder="Ziraat Bankası">
+                </div>
+                <div class="form-group">
+                    <label>IBAN / Hesap No</label>
+                    <input type="text" id="bk_account" class="filter-select full-width" placeholder="TR00 0000 ...">
+                </div>
+                <div class="form-group">
+                    <label>Para Birimi</label>
+                    <select id="bk_currency" class="filter-select full-width">
+                        <option value="TRY">TRY</option><option value="USD">USD</option>
+                        <option value="EUR">EUR</option><option value="GBP">GBP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Bakiye</label>
+                    <input type="number" step="0.01" id="bk_balance" class="filter-select full-width" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Kredi Limiti</label>
+                    <input type="number" step="0.01" id="bk_limit" class="filter-select full-width" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Kredi Kullanımı</label>
+                    <input type="number" step="0.01" id="bk_usage" class="filter-select full-width" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Not</label>
+                <textarea id="bk_notes" class="filter-select full-width" rows="2"></textarea>
+            </div>
+            <p id="bankError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('bankModal')">İptal</button>
+                <button type="submit" class="btn-primary"><i data-lucide="save"></i> Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tahsilat Modal -->
+<div id="collectionModal" class="modal" onclick="modalBackdropClose(event,'collectionModal')">
+    <div class="modal-content" style="max-width:480px">
+        <div class="modal-header">
+            <h2 id="collModalTitle">Tahsilat Ekle</h2>
+            <button class="close-modal" onclick="closeModal('collectionModal')">&times;</button>
+        </div>
+        <form id="collectionForm" onsubmit="saveCollectionForm(event)">
+            <input type="hidden" id="collEditId">
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Tür *</label>
+                    <select id="coll_type" class="filter-select full-width" required>
+                        <option value="pending">Bekleyen</option>
+                        <option value="completed">Yapılan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tutar *</label>
+                    <input type="number" step="0.01" id="coll_amount" class="filter-select full-width" required placeholder="0.00">
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Karşı Taraf</label>
+                    <input type="text" id="coll_party" class="filter-select full-width" placeholder="Şirket adı...">
+                </div>
+                <div class="form-group">
+                    <label>Vade Tarihi</label>
+                    <input type="date" id="coll_due" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Tahsilat Tarihi</label>
+                    <input type="date" id="coll_date" class="filter-select full-width">
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Açıklama</label>
+                    <textarea id="coll_desc" class="filter-select full-width" rows="2"></textarea>
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" id="coll_overdue" style="width:16px;height:16px">
+                        Gecikmiş
+                    </label>
+                </div>
+            </div>
+            <p id="collError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('collectionModal')">İptal</button>
+                <button type="submit" class="btn-primary"><i data-lucide="save"></i> Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Proje Modal -->
+<div id="projectModal" class="modal" onclick="modalBackdropClose(event,'projectModal')">
+    <div class="modal-content" style="max-width:480px">
+        <div class="modal-header">
+            <h2 id="projModalTitle">Proje Ekle</h2>
+            <button class="close-modal" onclick="closeModal('projectModal')">&times;</button>
+        </div>
+        <form id="projectForm" onsubmit="saveProjectForm(event)">
+            <input type="hidden" id="projEditId">
+            <div class="form-grid-2">
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Proje Adı *</label>
+                    <input type="text" id="proj_name" class="filter-select full-width" required>
+                </div>
+                <div class="form-group">
+                    <label>Durum</label>
+                    <select id="proj_status" class="filter-select full-width">
+                        <option value="ongoing">Devam Ediyor</option>
+                        <option value="completed">Tamamlandı</option>
+                        <option value="cancelled">İptal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Müşteri</label>
+                    <input type="text" id="proj_client" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Başlangıç</label>
+                    <input type="date" id="proj_start" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Bitiş</label>
+                    <input type="date" id="proj_end" class="filter-select full-width">
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Proje Bedeli</label>
+                    <input type="number" step="0.01" id="proj_value" class="filter-select full-width" placeholder="0.00">
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Açıklama</label>
+                    <textarea id="proj_desc" class="filter-select full-width" rows="2"></textarea>
+                </div>
+            </div>
+            <p id="projError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('projectModal')">İptal</button>
+                <button type="submit" class="btn-primary"><i data-lucide="save"></i> Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Yatırım Modal -->
+<div id="investmentModal" class="modal" onclick="modalBackdropClose(event,'investmentModal')">
+    <div class="modal-content" style="max-width:540px">
+        <div class="modal-header">
+            <h2 id="invModalTitle">Yatırım Ekle</h2>
+            <button class="close-modal" onclick="closeModal('investmentModal')">&times;</button>
+        </div>
+        <form id="investmentForm" onsubmit="saveInvestmentForm(event)">
+            <input type="hidden" id="invEditId">
+            <div class="form-grid-2">
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Yatırım Adı *</label>
+                    <input type="text" id="inv_name" class="filter-select full-width" required placeholder="Borsa Portföyü">
+                </div>
+                <div class="form-group">
+                    <label>Tür</label>
+                    <input type="text" id="inv_type" class="filter-select full-width" placeholder="Hisse, Gayrimenkul...">
+                </div>
+                <div class="form-group">
+                    <label>Sektör</label>
+                    <input type="text" id="inv_sector" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Coğrafya</label>
+                    <input type="text" id="inv_geo" class="filter-select full-width" placeholder="Türkiye, Avrupa...">
+                </div>
+                <div class="form-group">
+                    <label>Durum</label>
+                    <select id="inv_status" class="filter-select full-width">
+                        <option value="active">Aktif</option>
+                        <option value="planned">Planlanan</option>
+                        <option value="exited">Çıkış Yapıldı</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Alış Değeri</label>
+                    <input type="number" step="0.01" id="inv_purchase" class="filter-select full-width" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Güncel Değer</label>
+                    <input type="number" step="0.01" id="inv_current" class="filter-select full-width" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Hedef Getiri %</label>
+                    <input type="text" id="inv_return" class="filter-select full-width" placeholder="15%">
+                </div>
+                <div class="form-group">
+                    <label>Risk Skoru (0-100)</label>
+                    <input type="number" id="inv_risk" min="0" max="100" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Alış Tarihi</label>
+                    <input type="date" id="inv_pdate" class="filter-select full-width">
+                </div>
+                <div class="form-group" style="grid-column:1/-1">
+                    <label>Notlar</label>
+                    <textarea id="inv_notes" class="filter-select full-width" rows="2"></textarea>
+                </div>
+            </div>
+            <p id="invError" class="auth-error"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('investmentModal')">İptal</button>
+                <button type="submit" class="btn-primary"><i data-lucide="save"></i> Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Premium Modal -->
 <div id="premiumModal" class="modal" onclick="modalBackdropClose(event,'premiumModal')">
     <div class="modal-content" style="max-width:640px">
         <div class="modal-header premium-modal-header">
@@ -623,10 +1213,10 @@
             <button class="close-modal" onclick="closeModal('premiumModal')">&times;</button>
         </div>
         <p style="color:var(--text-muted);margin-bottom:1.5rem">
-            Bu özelliği kullanmak için aktif bir abonelik gereklidir. Aşağıdan bir paket seçerek talep oluşturabilirsiniz.
+            Bu özelliği kullanmak için aktif bir abonelik gereklidir.
         </p>
         <div id="premiumPackagesGrid" class="packages-grid">
-            <p class="text-muted">Yükleniyor...</p>
+            <div class="skeleton-block"></div>
         </div>
         <div class="modal-footer" style="margin-top:1.5rem">
             <button class="btn-secondary" onclick="closeModal('premiumModal')">Kapat</button>

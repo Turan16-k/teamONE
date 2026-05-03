@@ -210,7 +210,7 @@ async function initApp(user) {
 }
 
 // ─── Görünüm Geçişi ────────────────────────────────────────────────
-const VIEWS = ['dashboard','companies','reports','subscription','admin'];
+const VIEWS = ['dashboard','companies','company-detail','reports','firmalarimiz','subscription','admin'];
 
 async function switchView(view, navEl, loadData = true) {
     VIEWS.forEach(v => {
@@ -228,6 +228,7 @@ async function switchView(view, navEl, loadData = true) {
     if (view === 'reports')      await initReportsView();
     if (view === 'subscription') loadSubscriptionView();
     if (view === 'admin')        loadAdminView();
+    if (view === 'firmalarimiz') switchFirmTab('contracts', document.querySelector('#view-firmalarimiz .admin-tab-btn.active') || document.querySelector('#view-firmalarimiz .admin-tab-btn'));
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────────
@@ -304,9 +305,10 @@ function renderRecentReports(reports) {
                 ? '<span class="status-badge success">AI</span>'
                 : '<span class="status-badge warning">Manuel</span>'}</td>
             <td>
-                <button class="action-btn" onclick="downloadPptx(${r.id})" title="PPTX İndir">
-                    <i data-lucide="download"></i>
-                </button>
+                <div style="display:flex;gap:4px">
+                    <button class="action-btn" onclick="downloadPdf(${r.id})" title="PDF Raporu İndir" style="color:#C62828"><i data-lucide="file-text"></i></button>
+                    <button class="action-btn" onclick="downloadPptx(${r.id})" title="PPTX İndir"><i data-lucide="download"></i></button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -379,9 +381,9 @@ async function loadCompanies(search = '') {
             <td>${escHtml(c.sector||'—')}</td>
             <td>${new Date(c.created_at).toLocaleDateString('tr-TR')}</td>
             <td style="display:flex;gap:4px;align-items:center">
-                <button class="action-btn" title="Raporlarını Gör"
-                    onclick="goToReports(${c.id})">
-                    <i data-lucide="file-text"></i>
+                <button class="action-btn" title="Detay Gör"
+                    onclick="goToCompanyDetail(${c.id}, '${escAttr(c.name)}')">
+                    <i data-lucide="eye"></i>
                 </button>
                 <button class="action-btn" title="Rapor Yükle"
                     onclick="openUploadModal(${c.id})">
@@ -549,6 +551,10 @@ async function loadAllReports() {
                         onclick="triggerAnalysis(${r.id}, this)">
                         <i data-lucide="sparkles"></i>
                     </button>
+                    <button class="action-btn" title="PDF Raporu İndir"
+                        onclick="downloadPdf(${r.id})" style="color:#C62828">
+                        <i data-lucide="file-text"></i>
+                    </button>
                     <button class="action-btn" title="PPTX İndir"
                         onclick="downloadPptx(${r.id})">
                         <i data-lucide="presentation"></i>
@@ -618,6 +624,14 @@ async function downloadPptx(reportId) {
     const res = await http(`/financial/reports/${reportId}/export/pptx`);
     if (!res?.ok) { toast('İndirme başarısız.', 'error'); return; }
     downloadBlob(await res.blob(), `rapor_${reportId}.pptx`);
+}
+
+async function downloadPdf(reportId) {
+    toast('PDF raporu hazırlanıyor, lütfen bekleyin...', 'info');
+    const res = await http(`/financial/reports/${reportId}/export/pdf`);
+    if (!res?.ok) { toast('PDF oluşturulamadı.', 'error'); return; }
+    downloadBlob(await res.blob(), `rapor_${reportId}.pdf`);
+    toast('PDF başarıyla indirildi.', 'success');
 }
 
 async function downloadCsv(reportId) {
@@ -1416,3 +1430,272 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     }
 });
+
+// ─── T4 & T5: ŞİRKET DETAY / FİRMALARIMIZ YENİ SEKMELER & GRAFİKLER ───
+let currentCompanyId = null;
+let _charts = {};
+
+function initChart(id, type, data, options) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    if (_charts[id]) _charts[id].destroy();
+    _charts[id] = new Chart(ctx, { type, data, options });
+}
+
+window.goToCompanyDetail = async function(id, name) {
+    currentCompanyId = id;
+    document.getElementById('detailCompanyName').textContent = name || 'Şirket Detayı';
+    switchView('company-detail', null);
+    switchCompanyTab('info', document.querySelector('.company-detail-tabs .cd-tab'));
+};
+
+window.switchCompanyTab = function(tab, btn) {
+    document.querySelectorAll('.cd-tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.cd-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(`cd-tab-${tab}`).style.display = 'block';
+    if(btn) btn.classList.add('active');
+    lucide.createIcons();
+
+    if(tab === 'info') loadCompanyInfoTab();
+    if(tab === 'findurum') loadFinDurumTab();
+    if(tab === 'reports') loadReportsTab();
+    if(tab === 'yatirim') loadYatirimTab();
+    if(tab === 'presentation') loadPresentationTab();
+};
+
+async function loadCompanyInfoTab() {
+    const c = await GET(`/companies/${currentCompanyId}`);
+    if(!c) return;
+    document.getElementById('ci_name').value = c.name || '';
+    document.getElementById('ci_tax_id').value = c.tax_id || '';
+    document.getElementById('ci_sector').value = c.sector || '';
+    document.getElementById('ci_desc').value = c.description || '';
+    
+    // Check local storage for extended fields
+    const meta = JSON.parse(localStorage.getItem(`ci_meta_${currentCompanyId}`) || '{}');
+    ['ci_trade_reg','ci_founding','ci_person','ci_phone','ci_email','ci_rev_est','ci_rev_act','ci_contract_amt','ci_contract_type','ci_contract_start','ci_contract_end','ci_address'].forEach(k => {
+        const el = document.getElementById(k);
+        if(el) el.value = meta[k] || '';
+    });
+}
+
+window.saveCompanyInfo = async function() {
+    const body = {
+        name: document.getElementById('ci_name').value.trim(),
+        tax_id: document.getElementById('ci_tax_id').value.trim(),
+        sector: document.getElementById('ci_sector').value.trim(),
+        description: document.getElementById('ci_desc').value.trim()
+    };
+    await http(`/companies/${currentCompanyId}`, { method:'PUT', body: JSON.stringify(body) });
+    
+    const meta = {};
+    ['ci_trade_reg','ci_founding','ci_person','ci_phone','ci_email','ci_rev_est','ci_rev_act','ci_contract_amt','ci_contract_type','ci_contract_start','ci_contract_end','ci_address'].forEach(k => {
+        const el = document.getElementById(k);
+        if(el) meta[k] = el.value;
+    });
+    localStorage.setItem(`ci_meta_${currentCompanyId}`, JSON.stringify(meta));
+    toast('Firma bilgileri başarıyla kaydedildi.', 'success');
+};
+
+function loadFinDurumTab() {
+    document.getElementById('finStatusSummary').innerHTML = `
+        <div class="stat-card"><div class="stat-details"><h3>Kasa / Banka</h3><p class="stat-value">₺124,500</p></div></div>
+        <div class="stat-card"><div class="stat-details"><h3>Toplam Alacak</h3><p class="stat-value">₺45,000</p></div></div>
+        <div class="stat-card"><div class="stat-details"><h3>Toplam Borç</h3><p class="stat-value">₺20,000</p></div></div>
+    `;
+}
+
+window.switchCollTab = function(tab, btn) {
+    document.querySelectorAll('.admin-tab-btn', btn.parentNode).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const cont = document.getElementById('collectionsContainer');
+    if(tab === 'pending') cont.innerHTML = '<div class="empty-state"><p>Bekleyen tahsilat yok.</p></div>';
+    else cont.innerHTML = '<div class="empty-state"><p>Yapılan tahsilat yok.</p></div>';
+};
+
+window.openBankModal = () => toast('Banka Ekle modali (Demo)', 'info');
+window.openCollectionModal = () => toast('Tahsilat Ekle modali (Demo)', 'info');
+window.openProjectModal = () => toast('Proje Ekle modali (Demo)', 'info');
+window.openInvestmentModal = () => toast('Yatırım Ekle modali (Demo)', 'info');
+
+function loadReportsTab() {
+    fetchCompanyReports();
+}
+async function fetchCompanyReports() {
+    const y = document.getElementById('cdFilterYear').value;
+    const t = document.getElementById('cdFilterType').value;
+    let url = `/financial/companies/${currentCompanyId}/reports?page=1&page_size=50`;
+    if(y) url += `&fiscal_year=${y}`;
+    if(t) url += `&report_type=${t}`;
+    const data = await GET(url);
+    const tbody = document.getElementById('cdReportsBody');
+    if(!data || !data.items || !data.items.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Rapor bulunamadı.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.items.map(r => `
+        <tr>
+            <td>${r.fiscal_year}</td>
+            <td>${reportTypeLabel(r.report_type)}</td>
+            <td>${periodLabel(r.period)}</td>
+            <td>${r.is_ai_generated ? '<span class="status-badge success">AI</span>' : '<span class="status-badge warning">Manuel</span>'}</td>
+            <td>—</td>
+            <td>
+                <div style="display:flex;gap:4px">
+                    <button class="action-btn" onclick="downloadPdf(${r.id})" title="PDF Raporu İndir" style="color:#C62828"><i data-lucide="file-text"></i></button>
+                    <button class="action-btn" onclick="downloadPptx(${r.id})" title="PPTX İndir"><i data-lucide="presentation"></i></button>
+                    <button class="action-btn" onclick="downloadExcel(${r.id})" title="Excel İndir"><i data-lucide="file-spreadsheet"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    lucide.createIcons();
+}
+window.loadCompanyReports = fetchCompanyReports;
+
+function loadYatirimTab() {
+    document.getElementById('invSummaryCards').innerHTML = `
+        <div style="display:flex;gap:1rem;">
+            <div style="flex:1;background:var(--bg-secondary);padding:1rem;border-radius:8px"><strong>Toplam Yatırım:</strong> ₺2,500,000</div>
+            <div style="flex:1;background:var(--bg-secondary);padding:1rem;border-radius:8px"><strong>Beklenen Getiri:</strong> %18</div>
+        </div>
+    `;
+    initChart('invPieChart', 'doughnut', {
+        labels: ['Teknoloji', 'Gayrimenkul', 'Enerji'],
+        datasets: [{ data: [55, 30, 15], backgroundColor: ['#4C6FFF', '#00D084', '#FF9F43'] }]
+    });
+}
+
+async function loadPresentationTab() {
+    const data = await GET(`/financial/companies/${currentCompanyId}/reports?page=1&page_size=50`);
+    const sel = document.getElementById('presentReportSel');
+    sel.innerHTML = '<option value="">Rapor seçin...</option>';
+    if(data && data.items) {
+        data.items.forEach(r => {
+            const o = document.createElement('option');
+            o.value = r.id; o.textContent = `${r.fiscal_year} - ${reportTypeLabel(r.report_type)}`;
+            sel.appendChild(o);
+        });
+    }
+    sel.onchange = async (e) => {
+        if(!e.target.value) { document.getElementById('presentCharts').style.display = 'none'; return; }
+        const r = await GET(`/financial/reports/${e.target.value}`);
+        if(r) renderPresentationCharts(r);
+    };
+}
+
+function renderPresentationCharts(r) {
+    document.getElementById('presentCharts').style.display = 'block';
+    initChart('incomeChart', 'bar', {
+        labels: [r.fiscal_year],
+        datasets: [
+            { label: 'Gelir', data: [r.revenue||0], backgroundColor: '#4C6FFF' },
+            { label: 'Net Kâr', data: [r.net_income||0], backgroundColor: '#00D084' }
+        ]
+    });
+    initChart('cashflowChart', 'doughnut', {
+        labels: ['Operasyonel', 'Yatırım', 'Finansman'],
+        datasets: [{ data: [r.operating_cash_flow||0, Math.abs(r.investing_cash_flow||0), Math.abs(r.financing_cash_flow||0)], backgroundColor: ['#4C6FFF', '#00D084', '#FF9F43'] }]
+    });
+    initChart('assetsChart', 'pie', {
+        labels: ['Dönen Varlıklar', 'Duran Varlıklar'],
+        datasets: [{ data: [r.total_current_assets||0, r.total_non_current_assets||0], backgroundColor: ['#4C6FFF', '#8A2BE2'] }]
+    });
+    initChart('equityChart', 'bar', {
+        labels: ['Yapı'],
+        datasets: [
+            { label: 'Toplam Borç', data: [r.total_liabilities||0], backgroundColor: '#FF4C4C' },
+            { label: 'Özkaynak', data: [r.total_equity||0], backgroundColor: '#00D084' }
+        ]
+    });
+}
+
+window.downloadPdfFromDetail = () => {
+    const id = document.getElementById('presentReportSel').value;
+    if(id) downloadPdf(id); else toast('Lütfen rapor seçin', 'warning');
+};
+window.downloadPptxFromDetail = () => {
+    const id = document.getElementById('presentReportSel').value;
+    if(id) downloadPptx(id); else toast('Lütfen rapor seçin', 'warning');
+};
+window.downloadExcelFromDetail = () => {
+    const id = document.getElementById('presentReportSel').value;
+    if(id) downloadExcel(id); else toast('Lütfen rapor seçin', 'warning');
+};
+window.downloadCsvFromDetail = () => {
+    const id = document.getElementById('presentReportSel').value;
+    if(id) downloadCsv(id); else toast('Lütfen rapor seçin', 'warning');
+};
+
+window.switchFirmTab = function(tab, btn) {
+    document.querySelectorAll('#view-firmalarimiz .admin-tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('#view-firmalarimiz .admin-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`firm-tab-${tab}`).style.display = 'block';
+    if(btn) btn.classList.add('active');
+    lucide.createIcons();
+
+    if(tab === 'contracts') loadFirmContracts();
+    if(tab === 'abonelik') loadFirmAbonelik();
+    if(tab === 'surec') loadFirmSurec();
+};
+
+async function loadFirmContracts() {
+    const data = await GET('/companies?page=1&page_size=100');
+    const tbody = document.getElementById('contractsBody');
+    if(!data || !data.items || !data.items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Sözleşme bulunamadı.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.items.map(c => {
+        const meta = JSON.parse(localStorage.getItem(`ci_meta_${c.id}`) || '{}');
+        return `
+            <tr>
+                <td><strong>${escHtml(c.name)}</strong></td>
+                <td>${escHtml(c.sector||'—')}</td>
+                <td>${escHtml(meta.ci_contract_type||'—')}</td>
+                <td>${meta.ci_contract_amt ? '₺'+parseFloat(meta.ci_contract_amt).toLocaleString('tr-TR') : '—'}</td>
+                <td>${escHtml(meta.ci_contract_start||'—')}</td>
+                <td>${escHtml(meta.ci_contract_end||'—')}</td>
+                <td><span class="tag positive">Aktif</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function loadFirmAbonelik() {
+    const [sub, packages] = await Promise.all([
+        GET('/subscriptions/my-subscription'),
+        GET('/subscriptions/packages')
+    ]);
+    document.getElementById('firmSubContent').innerHTML = `
+        <div style="display:flex;gap:1.5rem;align-items:center;">
+            <div>
+                <p style="font-size:1.1rem;margin-bottom:0.2rem">Aktif Paket: <strong>${sub?.package || 'Yok'}</strong></p>
+                <p>Durum: <span class="tag ${sub?.status === 'active' ? 'positive' : 'info'}">${sub?.status === 'active' ? 'Aktif' : 'Pasif'}</span></p>
+            </div>
+            <button class="btn-outline-primary" onclick="switchView('subscription', document.querySelector('[data-view=subscription]'))">
+                Paketleri Yönet
+            </button>
+        </div>
+    `;
+    const grid = document.getElementById('firmPackagesGrid');
+    if(packages && packages.length) {
+        grid.innerHTML = packages.map(p => `
+            <div class="package-card" style="padding:1.5rem">
+                <h4>${escHtml(p.name)}</h4>
+                <p style="font-size:1.2rem;font-weight:700;color:var(--primary);margin:0.5rem 0">₺${parseFloat(p.price).toLocaleString('tr-TR')} / ay</p>
+                <p style="color:var(--text-muted);font-size:0.9rem">${p.max_companies} Şirket / ${p.max_reports_per_month} Rapor / ${p.max_ai_calls_per_month} AI Çağrı</p>
+            </div>
+        `).join('');
+    }
+}
+
+function loadFirmSurec() {
+    document.getElementById('surecPendingList').innerHTML = '<p class="text-muted" style="padding:1rem"><i data-lucide="info"></i> Bekleyen tahsilat bulunmuyor.</p>';
+    document.getElementById('surecCompletedList').innerHTML = '<p class="text-muted" style="padding:1rem"><i data-lucide="info"></i> Yapılan tahsilat bulunmuyor.</p>';
+    initChart('surecBarChart', 'bar', {
+        labels: ['Oca', 'Şub', 'Mar', 'Nis', 'May'],
+        datasets: [{ label: 'Tahsilat (₺)', data: [15000, 22000, 18000, 30000, 25000], backgroundColor: '#00D084' }]
+    });
+    lucide.createIcons();
+}

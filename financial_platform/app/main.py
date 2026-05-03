@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.config import settings
 from app.database import Base, engine
 from app.utils.logging import logger, log_exception
-from app.api.v1 import auth, companies, financial, admin, subscriptions, notifications
+from app.api.v1 import auth, companies, financial, admin, subscriptions, notifications, extended
 
 Base.metadata.create_all(bind=engine)
 
@@ -96,6 +96,7 @@ app.include_router(financial.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(extended.router, prefix="/api/v1")
 
 
 @app.get("/health")

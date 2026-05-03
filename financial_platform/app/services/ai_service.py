@@ -78,6 +78,28 @@ Sayıları tam sayı veya ondalık olarak ver (virgül değil nokta kullan).
 Belgede olmayan alanlar için null kullan. Sadece JSON döndür.
 """
 
+FINANCIAL_NARRATIVE_PROMPT = """
+Sen deneyimli bir finans direktörüsün. Aşağıdaki finansal verileri derinlemesine analiz ederek kapsamlı bir rapor metni üret.
+
+FİNANSAL VERİLER:
+{financial_data}
+
+Aşağıdaki JSON formatında yanıt ver (sadece JSON, başka hiçbir şey yazma):
+{{
+  "executive_summary": "<3-4 cümle, şirketin genel finansal durumunu özetleyen yönetici özeti>",
+  "balance_sheet_commentary": "<bilançodaki varlık yapısı, borç düzeyi ve özkaynak hakkında 2-3 cümle analiz>",
+  "income_commentary": "<gelir, brüt kâr, EBITDA ve net kâr hakkında 2-3 cümle yorum, marj ve performans değerlendirmesi>",
+  "cashflow_commentary": "<nakit akışının sürdürülebilirliği ve kalitesi hakkında 2-3 cümle yorum, yalnızca veri varsa>",
+  "ratio_commentary": "<finansal oranların sektör normlarıyla karşılaştırmalı 2-3 cümle değerlendirmesi, yalnızca oran verisi varsa>",
+  "overall_conclusion": "<şirketin finansal sağlığına dair 3-4 cümle genel sonuç ve değerlendirme>",
+  "key_strengths": ["<güçlü yön 1>", "<güçlü yön 2>", "<güçlü yön 3>"],
+  "key_risks": ["<risk faktörü 1>", "<risk faktörü 2>", "<risk faktörü 3>"],
+  "recommendations": ["<somut öneri 1>", "<somut öneri 2>", "<somut öneri 3>"]
+}}
+
+Türkçe ve profesyonel üslupla yaz. Boş veya yetersiz veri alanları için kısa açıklayıcı notlar ekle. Sadece JSON döndür.
+"""
+
 FINANCIAL_ANALYSIS_PROMPT = """
 Sen deneyimli bir finansal analistsin. Aşağıdaki finansal verileri analiz et ve
 kapsamlı rasyo hesaplamaları ile değerlendirme yap.
@@ -226,7 +248,7 @@ class AIService:
         start_time = time.time()
 
         try:
-            formatted = json.dumps(financial_data, ensure_ascii=False, indent=2, default=str)
+            formatted = json.dumps(financial_data, ensure_ascii=False, indent=2)
             prompt = FINANCIAL_ANALYSIS_PROMPT.format(financial_data=formatted)
 
             model = self._get_model()
@@ -253,6 +275,47 @@ class AIService:
                 error_type=type(e).__name__, error_message=str(e),
             )
             raise
+
+
+    def generate_report_narrative(
+        self,
+        financial_data: dict,
+        db,
+        user_id: Optional[int] = None,
+    ) -> dict:
+        """
+        Tüm finansal verileri alır, AI ile Türkçe anlatı metni üretir.
+        PDF raporun açıklama bölümlerini doldurur.
+        """
+        start_time = time.time()
+        try:
+            formatted = json.dumps(financial_data, ensure_ascii=False, indent=2)
+            prompt = FINANCIAL_NARRATIVE_PROMPT.format(financial_data=formatted)
+
+            model = self._get_model()
+            response = model.generate_content(prompt)
+            duration_ms = (time.time() - start_time) * 1000
+
+            result = json.loads(_clean_json(response.text))
+
+            usage = response.usage_metadata
+            log_ai_operation(
+                db=db, user_id=user_id, service="report_narrative",
+                model_used=self.model_name,
+                prompt_tokens=getattr(usage, "prompt_token_count", None),
+                completion_tokens=getattr(usage, "candidates_token_count", None),
+                duration_ms=duration_ms, success=True,
+            )
+            return result
+
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            log_ai_operation(
+                db=db, user_id=user_id, service="report_narrative",
+                model_used=self.model_name, duration_ms=duration_ms, success=False,
+                error_type=type(e).__name__, error_message=str(e),
+            )
+            return {}
 
 
 ai_service = AIService()
