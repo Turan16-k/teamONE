@@ -455,24 +455,91 @@
                     <small id="metadataStatus">Bilgiler çıkarılıyor...</small>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Şirket Adı *</label>
-                <input type="text" id="newCompanyName" class="filter-select full-width" required>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Şirket Ünvanı *</label>
+                    <input type="text" id="newCompanyName" class="filter-select full-width" required>
+                </div>
+                <div class="form-group">
+                    <label>Sektör / Faaliyet Alanı</label>
+                    <input type="text" id="newCompanySector" class="filter-select full-width" placeholder="Teknoloji, İnşaat...">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Vergi Numarası</label>
-                <input type="text" id="newCompanyTaxId" class="filter-select full-width" maxlength="20">
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Vergi Numarası</label>
+                    <input type="text" id="newCompanyTaxId" class="filter-select full-width" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Ticaret Sicil No</label>
+                    <input type="text" id="newCompanyRegisterNo" class="filter-select full-width">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Sektör</label>
-                <input type="text" id="newCompanySector" class="filter-select full-width"
-                       placeholder="Teknoloji, İnşaat, Finans...">
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Kuruluş Tarihi</label>
+                    <input type="date" id="newCompanyEstDate" class="filter-select full-width">
+                </div>
+                <div class="form-group">
+                    <label>Yetkili Kişi Adı</label>
+                    <input type="text" id="newCompanyAuthPerson" class="filter-select full-width">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Açıklama</label>
-                <textarea id="newCompanyDesc" class="filter-select full-width" rows="2"
-                          placeholder="İsteğe bağlı..."></textarea>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>İletişim Bilgileri</label>
+                    <input type="text" id="newCompanyContact" class="filter-select full-width" placeholder="Tel / E-posta">
+                </div>
+                <div class="form-group">
+                    <label>Yıllık Ciro Tahmini (TL)</label>
+                    <input type="number" id="newCompanyTurnover" class="filter-select full-width" step="0.01">
+                </div>
             </div>
+
+            <div class="form-group">
+                <label>Kayıtlı Adres</label>
+                <textarea id="newCompanyAddress" class="filter-select full-width" rows="2" placeholder="Merkez ve şubeler..."></textarea>
+            </div>
+
+            <div style="background: var(--glass); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 3px solid var(--accent);">
+                <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--accent);">Sözleşme Detayları</h4>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Sözleşme Bedeli (TL)</label>
+                        <input type="number" id="newCompanyContractValue" class="filter-select full-width" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Sözleşme Türü</label>
+                        <select id="newCompanyContractType" class="filter-select full-width">
+                            <option value="">Seçiniz...</option>
+                            <option value="Rapor">Rapor</option>
+                            <option value="Analiz">Analiz</option>
+                            <option value="Sistem">Sistem</option>
+                            <option value="Diger">Diğer</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Başlangıç Tarihi</label>
+                        <input type="date" id="newCompanyContractStart" class="filter-select full-width">
+                    </div>
+                    <div class="form-group">
+                        <label>Bitiş Tarihi</label>
+                        <input type="date" id="newCompanyContractEnd" class="filter-select full-width">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Kısa Açıklama</label>
+                <textarea id="newCompanyDesc" class="filter-select full-width" rows="2" placeholder="İsteğe bağlı..."></textarea>
+            </div>
+
             <p id="companyError" class="auth-error"></p>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeModal('createCompanyModal')">İptal</button>

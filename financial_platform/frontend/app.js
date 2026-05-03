@@ -415,10 +415,20 @@ async function handleCreateCompany(e) {
     document.getElementById('companyError').textContent = '';
 
     const body = {
-        name:        document.getElementById('newCompanyName').value.trim(),
-        tax_id:      document.getElementById('newCompanyTaxId').value.trim() || null,
-        sector:      document.getElementById('newCompanySector').value.trim() || null,
-        description: document.getElementById('newCompanyDesc').value.trim() || null,
+        name:                       document.getElementById('newCompanyName').value.trim(),
+        tax_id:                     document.getElementById('newCompanyTaxId').value.trim() || null,
+        commercial_register_number: document.getElementById('newCompanyRegisterNo').value.trim() || null,
+        establishment_date:         document.getElementById('newCompanyEstDate').value || null,
+        sector:                     document.getElementById('newCompanySector').value.trim() || null,
+        description:                document.getElementById('newCompanyDesc').value.trim() || null,
+        authorized_person_name:     document.getElementById('newCompanyAuthPerson').value.trim() || null,
+        contact_info:               document.getElementById('newCompanyContact').value.trim() || null,
+        address:                    document.getElementById('newCompanyAddress').value.trim() || null,
+        annual_turnover_estimate:   parseFloat(document.getElementById('newCompanyTurnover').value) || null,
+        contract_value:             parseFloat(document.getElementById('newCompanyContractValue').value) || null,
+        contract_start_date:        document.getElementById('newCompanyContractStart').value || null,
+        contract_end_date:          document.getElementById('newCompanyContractEnd').value || null,
+        contract_type:              document.getElementById('newCompanyContractType').value || null,
     };
 
     const res = await POST('/companies', body);
@@ -449,6 +459,8 @@ async function deleteCompany(id, name) {
 }
 
 function openCreateCompanyModal() {
+    document.getElementById('createCompanyForm').reset();
+    document.getElementById('companyError').textContent = '';
     document.getElementById('createCompanyModal').classList.add('active');
     resetMetadataDropZone();
     lucide.createIcons();
@@ -495,8 +507,18 @@ async function handleMetadataUpload(file) {
     const data = await res.json();
     if (data.name) document.getElementById('newCompanyName').value = data.name;
     if (data.tax_id) document.getElementById('newCompanyTaxId').value = data.tax_id;
+    if (data.commercial_register_number) document.getElementById('newCompanyRegisterNo').value = data.commercial_register_number;
+    if (data.establishment_date) document.getElementById('newCompanyEstDate').value = data.establishment_date;
     if (data.sector) document.getElementById('newCompanySector').value = data.sector;
     if (data.description) document.getElementById('newCompanyDesc').value = data.description;
+    if (data.authorized_person_name) document.getElementById('newCompanyAuthPerson').value = data.authorized_person_name;
+    if (data.contact_info) document.getElementById('newCompanyContact').value = data.contact_info;
+    if (data.address) document.getElementById('newCompanyAddress').value = data.address;
+    if (data.annual_turnover_estimate) document.getElementById('newCompanyTurnover').value = data.annual_turnover_estimate;
+    if (data.contract_value) document.getElementById('newCompanyContractValue').value = data.contract_value;
+    if (data.contract_start_date) document.getElementById('newCompanyContractStart').value = data.contract_start_date;
+    if (data.contract_end_date) document.getElementById('newCompanyContractEnd').value = data.contract_end_date;
+    if (data.contract_type) document.getElementById('newCompanyContractType').value = data.contract_type;
     
     toast('Şirket bilgileri otomatik dolduruldu.', 'success');
     setTimeout(() => { prog.style.display = 'none'; }, 2000);
@@ -903,7 +925,7 @@ async function requestPurchase(packageId, packageName) {
     const res = await POST('/subscriptions/purchase', { package_id: packageId });
     if (!res) return;
     if (res.ok) {
-        toast(`"${packageName}" için talep oluşturuldu. Admin onayı bekleniyor.`, 'success');
+        toast(`"${packageName}" paketi başarıyla aktif edildi.`, 'success');
         loadSubscriptionView();
     } else {
         const err = await res.json().catch(() => ({}));

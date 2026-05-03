@@ -96,17 +96,27 @@ Belgede olmayan alanlar için null kullan. Sadece JSON döndür.
 COMPANY_METADATA_EXTRACTION_PROMPT = """
 Sen bir kurumsal veri analistisin. Sana verilen dökümanı incele.
 Bu döküman içinde bir veya daha fazla şirkete ait bilgiler olabilir.
-Lütfen dökümanda geçen rastgele bir şirketi seç ve o şirkete ait temel kimlik bilgilerini çıkar.
+Lütfen dökümanda geçen rastgele bir şirketi seç ve o şirkete ait detaylı kimlik ve sözleşme bilgilerini çıkar.
 
 ÇIKTI FORMATI (sadece JSON):
 {
-  "name": "Şirket Tam Adı",
-  "tax_id": "Vergi Numarası (varsa)",
-  "sector": "Faaliyet Gösterdiği Sektör",
-  "description": "Şirket hakkında kısa açıklama/özet"
+  "name": "Şirket Tam Adı (Ünvan)",
+  "tax_id": "Vergi Numarası",
+  "commercial_register_number": "Ticaret Sicil Numarası",
+  "establishment_date": "YYYY-MM-DD formatında Kuruluş Tarihi",
+  "sector": "Faaliyet Alanı / Sektör",
+  "description": "Şirket hakkında kısa açıklama/özet",
+  "authorized_person_name": "Yetkili Kişi Adı",
+  "contact_info": "İletişim Bilgileri (Telefon/E-posta)",
+  "address": "Kayıtlı Adres (Merkez ve varsa şubeler belirtilerek)",
+  "annual_turnover_estimate": <sayısal yıllık ciro tahmini veya null>,
+  "contract_value": <sayısal sözleşme bedeli veya null>,
+  "contract_start_date": "YYYY-MM-DD formatında Sözleşme Başlangıç Tarihi",
+  "contract_end_date": "YYYY-MM-DD formatında Sözleşme Bitiş Tarihi",
+  "contract_type": "Rapor | Analiz | Sistem | Diger"
 }
 
-Eğer bilgi dökümanda yoksa null kullan. Sadece JSON döndür.
+Eğer belirli bir bilgi dökümanda yoksa null kullan. Sayısal alanları (ciro, bedel) sadece sayı (float/int) olarak ver. Sadece JSON döndür.
 """
 
 FINANCIAL_ANALYSIS_PROMPT = """
