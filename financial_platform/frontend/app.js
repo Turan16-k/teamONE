@@ -450,7 +450,56 @@ async function deleteCompany(id, name) {
 
 function openCreateCompanyModal() {
     document.getElementById('createCompanyModal').classList.add('active');
+    resetMetadataDropZone();
     lucide.createIcons();
+}
+
+function resetMetadataDropZone() {
+    document.getElementById('metadataProgress').style.display = 'none';
+    document.getElementById('metadataProgressFill').style.width = '0%';
+    const dz = document.getElementById('companyMetadataDropZone');
+    dz.innerHTML = `
+        <i data-lucide="file-up" style="width: 20px; height: 20px;"></i>
+        <p style="font-size: 0.8rem;">Dosya seç veya sürükle</p>
+        <input type="file" id="companyMetadataFile" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.webp">`;
+    lucide.createIcons();
+    dz.onclick = () => document.getElementById('companyMetadataFile').click();
+    document.getElementById('companyMetadataFile').onchange = e => {
+        if (e.target.files[0]) handleMetadataUpload(e.target.files[0]);
+    };
+}
+
+async function handleMetadataUpload(file) {
+    const dz = document.getElementById('companyMetadataDropZone');
+    const prog = document.getElementById('metadataProgress');
+    const fill = document.getElementById('metadataProgressFill');
+    const status = document.getElementById('metadataStatus');
+
+    prog.style.display = 'block';
+    fill.style.width = '20%';
+    status.textContent = 'Dosya yükleniyor...';
+
+    const form = new FormData();
+    form.append('file', file);
+
+    const res = await UPLOAD('/companies/extract-metadata', form);
+    if (!res || !res.ok) {
+        toast('Bilgi çıkarma başarısız.', 'error');
+        prog.style.display = 'none';
+        return;
+    }
+
+    fill.style.width = '100%';
+    status.textContent = 'Bilgiler çıkarıldı!';
+    
+    const data = await res.json();
+    if (data.name) document.getElementById('newCompanyName').value = data.name;
+    if (data.tax_id) document.getElementById('newCompanyTaxId').value = data.tax_id;
+    if (data.sector) document.getElementById('newCompanySector').value = data.sector;
+    if (data.description) document.getElementById('newCompanyDesc').value = data.description;
+    
+    toast('Şirket bilgileri otomatik dolduruldu.', 'success');
+    setTimeout(() => { prog.style.display = 'none'; }, 2000);
 }
 
 // ─── Raporlar ──────────────────────────────────────────────────────
@@ -545,6 +594,9 @@ async function loadAllReports() {
             <td>${scoreBadge}</td>
             <td>
                 <div style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="action-btn" title="Detayları Gör" onclick="viewReportDetail(${r.id})">
+                        <i data-lucide="eye"></i>
+                    </button>
                     <button class="action-btn" title="AI Analiz Başlat" id="analyzeBtn-${r.id}"
                         onclick="triggerAnalysis(${r.id}, this)">
                         <i data-lucide="sparkles"></i>
@@ -552,10 +604,6 @@ async function loadAllReports() {
                     <button class="action-btn" title="PPTX İndir"
                         onclick="downloadPptx(${r.id})">
                         <i data-lucide="presentation"></i>
-                    </button>
-                    <button class="action-btn" title="CSV İndir"
-                        onclick="downloadCsv(${r.id})">
-                        <i data-lucide="download"></i>
                     </button>
                     <button class="action-btn danger-btn" title="Raporu Sil"
                         onclick="deleteReport(${r.id})">
@@ -758,8 +806,14 @@ async function handleUpload() {
 
     const data = await res.json();
     closeModal('uploadModal');
+    
+    // Analizi otomatik başlat (rasyolar ve grafikler için)
+    if (data.report_id) {
+        await triggerAnalysis(data.report_id);
+    }
+
     const conf = data.confidence_score ? ` (Güven: %${(data.confidence_score*100).toFixed(0)})` : '';
-    toast(`AI analizi tamamlandı!${conf}`, 'success');
+    toast(`Belge işlendi ve analiz tamamlandı!${conf}`, 'success');
 
     // Eğer raporlar ekranındaysak yenile
     if (document.getElementById('view-reports').style.display !== 'none') loadAllReports();
@@ -1275,3 +1329,156 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     }
 });
+
+// ─── Rapor Detay Modal & Grafikler ──────────────────────────────────
+let currentRevenueChart = null;
+let currentAssetChart = null;
+
+async function viewReportDetail(reportId) {
+    const r = await GET(`/financial/reports/${reportId}`);
+    if (!r) return;
+
+    document.getElementById('reportDetailTitle').textContent = `${r.company.name} - ${r.fiscal_year} Raporu`;
+    document.getElementById('reportDetailModal').classList.add('active');
+    
+    // Veri sekmesini doldur
+    renderReportData(r);
+    
+    // AI sekmesini hazırla
+    renderReportAiAnalysis(r);
+    
+    // Download butonu
+    document.getElementById('downloadPptxBtn').onclick = () => downloadPptx(r.id);
+    
+    switchReportTab('data', document.querySelector('.report-detail-tabs button'));
+    lucide.createIcons();
+}
+
+function switchReportTab(tab, btn) {
+    document.querySelectorAll('.report-tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.report-detail-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById(`report-tab-${tab}`).style.display = 'block';
+    btn.classList.add('active');
+}
+
+function renderReportData(r) {
+    const el = document.getElementById('reportDataContent');
+    el.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card"><h3>Toplam Varlık</h3><p>${fmtNum(r.total_assets)}</p></div>
+            <div class="stat-card"><h3>Toplam Borç</h3><p>${fmtNum(r.total_liabilities)}</p></div>
+            <div class="stat-card"><h3>Gelir</h3><p>${fmtNum(r.revenue)}</p></div>
+            <div class="stat-card"><h3>Net Kar</h3><p>${fmtNum(r.net_income)}</p></div>
+        </div>
+        <div style="margin-top: 1rem;">
+            <p><strong>Rapor Türü:</strong> ${reportTypeLabel(r.report_type)}</p>
+            <p><strong>Dönem:</strong> ${periodLabel(r.period)}</p>
+            <p><strong>Oluşturulma:</strong> ${new Date(r.created_at).toLocaleString('tr-TR')}</p>
+        </div>
+    `;
+}
+
+function renderReportAiAnalysis(r) {
+    let ratios = {};
+    try { ratios = typeof r.ai_ratios === 'string' ? JSON.parse(r.ai_ratios) : (r.ai_ratios || {}); } catch(e) {}
+    
+    const assessment = document.getElementById('aiOverallAssessment');
+    assessment.textContent = ratios.overall_assessment || 'Bu rapor için henüz AI analizi yapılmamış.';
+    
+    const ratiosGrid = document.getElementById('aiRatiosGrid');
+    ratiosGrid.innerHTML = '';
+    
+    if (ratios.liquidity) {
+        ratiosGrid.innerHTML += renderRatioCard('Likidite', [
+            ['Cari Oran', ratios.liquidity.current_ratio],
+            ['Asit-Test', ratios.liquidity.quick_ratio]
+        ]);
+    }
+    if (ratios.leverage) {
+        ratiosGrid.innerHTML += renderRatioCard('Kaldıraç', [
+            ['Borç/Varlık', ratios.leverage.debt_to_assets],
+            ['Borç/Özkaynak', ratios.leverage.debt_to_equity]
+        ]);
+    }
+    if (ratios.profitability) {
+        ratiosGrid.innerHTML += renderRatioCard('Kârlılık', [
+            ['Net Marj', pct(ratios.profitability.net_margin)],
+            ['ROE', pct(ratios.profitability.roe)]
+        ]);
+    }
+
+    // Grafiklerin çizimi
+    if (ratios.chart_data) {
+        setTimeout(() => renderCharts(ratios.chart_data), 100);
+    }
+}
+
+function renderRatioCard(title, items) {
+    return `
+        <div class="card" style="padding: 1rem;">
+            <h4 style="margin-bottom: 0.5rem; color: var(--secondary);">${title}</h4>
+            ${items.map(it => `
+                <div style="display:flex; justify-content:space-between; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.85rem;">${it[0]}</span>
+                    <strong style="font-size: 0.9rem;">${it[1] ?? '—'}</strong>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderCharts(chartData) {
+    if (currentRevenueChart) currentRevenueChart.destroy();
+    if (currentAssetChart) currentAssetChart.destroy();
+
+    const revCtx = document.getElementById('revenueChart').getContext('2d');
+    const assetCtx = document.getElementById('assetChart').getContext('2d');
+
+    const revData = chartData.revenue_expense || {};
+    currentRevenueChart = new Chart(revCtx, {
+        type: 'bar',
+        data: {
+            labels: revData.labels || [],
+            datasets: [
+                {
+                    label: 'Tutar',
+                    data: revData.revenue || [],
+                    backgroundColor: 'rgba(46, 134, 171, 0.7)',
+                    borderColor: '#2E86AB',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Gelir & Gider Analizi' } }
+        }
+    });
+
+    const assetData = chartData.asset_structure || {};
+    currentAssetChart = new Chart(assetCtx, {
+        type: 'doughnut',
+        data: {
+            labels: assetData.labels || [],
+            datasets: [{
+                data: assetData.values || [],
+                backgroundColor: [
+                    '#2E86AB', '#A239CA', '#4717F6', '#E74C3C', '#27AE60'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Varlık & Özkaynak Yapısı' } }
+        }
+    });
+}
+
+function fmtNum(n) {
+    if (n === null || n === undefined) return '—';
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+}
+function pct(n) {
+    if (n === null || n === undefined) return '—';
+    return (n * 100).toFixed(1) + '%';
+}

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -443,6 +444,18 @@
         </div>
         <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
             <div class="form-group">
+                <label>Belge ile Otomatik Doldur (İsteğe Bağlı)</label>
+                <div class="upload-area small" id="companyMetadataDropZone" style="padding: 1rem; border-style: dashed;">
+                    <i data-lucide="file-up" style="width: 20px; height: 20px;"></i>
+                    <p style="font-size: 0.8rem;">Dosya seç veya sürükle</p>
+                    <input type="file" id="companyMetadataFile" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                </div>
+                <div id="metadataProgress" style="display:none; margin-top: 0.5rem;">
+                    <div class="progress-bar"><div class="progress-fill" id="metadataProgressFill"></div></div>
+                    <small id="metadataStatus">Bilgiler çıkarılıyor...</small>
+                </div>
+            </div>
+            <div class="form-group">
                 <label>Şirket Adı *</label>
                 <input type="text" id="newCompanyName" class="filter-select full-width" required>
             </div>
@@ -520,6 +533,41 @@
         </div>
         <div class="modal-footer" style="margin-top:1.5rem">
             <button class="btn-secondary" onclick="closeModal('premiumModal')">Kapat</button>
+        </div>
+    </div>
+</div>
+
+<!-- Report Detail Modal -->
+<div id="reportDetailModal" class="modal" onclick="modalBackdropClose(event,'reportDetailModal')">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h2 id="reportDetailTitle">Rapor Detayı</h2>
+            <button class="close-modal" onclick="closeModal('reportDetailModal')">&times;</button>
+        </div>
+        <div class="report-detail-tabs">
+            <button class="admin-tab-btn active" onclick="switchReportTab('data',this)">Veriler</button>
+            <button class="admin-tab-btn" onclick="switchReportTab('ai',this)">AI Analizi & Grafikler</button>
+        </div>
+        
+        <div id="report-tab-data" class="report-tab-pane" style="margin-top: 1rem;">
+            <div id="reportDataContent"></div>
+        </div>
+        
+        <div id="report-tab-ai" class="report-tab-pane" style="display:none; margin-top: 1rem;">
+            <div id="aiAssessmentBox" class="card" style="margin-bottom: 1rem; background: var(--glass); border-left: 4px solid var(--primary);">
+                <h3>AI Değerlendirmesi</h3>
+                <p id="aiOverallAssessment" style="margin-top: 0.5rem; line-height: 1.6;"></p>
+            </div>
+            <div class="charts-grid" id="reportChartsGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <canvas id="revenueChart"></canvas>
+                <canvas id="assetChart"></canvas>
+            </div>
+            <div id="aiRatiosGrid" class="stats-grid" style="margin-top: 1rem;"></div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('reportDetailModal')">Kapat</button>
+            <button class="btn-primary" id="downloadPptxBtn"><i data-lucide="presentation"></i> PPTX İndir</button>
         </div>
     </div>
 </div>

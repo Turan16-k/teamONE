@@ -57,8 +57,7 @@ içindeki tüm finansal verileri yapılandırılmış JSON formatında çıkar.
     "gross_profit": <sayı veya null>,
     "operating_expenses": <sayı veya null>,
     "ebitda": <sayı veya null>,
-    "ebit": <sayı veya null>,
-    "interest_expense": <sayı veya null>,
+    "ebit": <sayı eller veya null>,
     "income_before_tax": <sayı veya null>,
     "income_tax": <sayı veya null>,
     "net_income": <sayı veya null>
@@ -92,6 +91,22 @@ içindeki tüm finansal verileri yapılandırılmış JSON formatında çıkar.
 
 Sayıları tam sayı veya ondalık olarak ver (virgül değil nokta kullan).
 Belgede olmayan alanlar için null kullan. Sadece JSON döndür.
+"""
+
+COMPANY_METADATA_EXTRACTION_PROMPT = """
+Sen bir kurumsal veri analistisin. Sana verilen dökümanı incele.
+Bu döküman içinde bir veya daha fazla şirkete ait bilgiler olabilir.
+Lütfen dökümanda geçen rastgele bir şirketi seç ve o şirkete ait temel kimlik bilgilerini çıkar.
+
+ÇIKTI FORMATI (sadece JSON):
+{
+  "name": "Şirket Tam Adı",
+  "tax_id": "Vergi Numarası (varsa)",
+  "sector": "Faaliyet Gösterdiği Sektör",
+  "description": "Şirket hakkında kısa açıklama/özet"
+}
+
+Eğer bilgi dökümanda yoksa null kullan. Sadece JSON döndür.
 """
 
 FINANCIAL_ANALYSIS_PROMPT = """
@@ -135,11 +150,24 @@ Aşağıdaki analizleri JSON formatında üret (sadece JSON):
   "overall_assessment": "<genel değerlendirme>",
   "financial_score": <1-100 arası toplam sağlık skoru int>,
   "risk_indicators": ["<risk 1>", "<risk 2>"],
-  "positive_indicators": ["<güçlü yön 1>", "<güçlü yön 2>"]
+  "positive_indicators": ["<güçlü yön 1>", "<güçlü yön 2>"],
+  "chart_data": {
+    "revenue_expense": {
+      "labels": ["Net Satışlar", "Satılan Malın Maliyeti", "Brüt Kar", "Net Kar"],
+      "revenue": [<revenue>, null, <gross_profit>, <net_income>],
+      "expenses": [null, <cost_of_goods_sold>, null, null]
+    },
+    "asset_structure": {
+      "labels": ["Dönen Varlıklar", "Duran Varlıklar", "Kısa Vadeli Borç", "Uzun Vadeli Borç", "Özkaynak"],
+      "values": [<total_current_assets>, <total_non_current_assets>, <total_current_liabilities>, <total_non_current_liabilities>, <total_equity>]
+    }
+  }
 }}
 
 Hesaplama yapılamayan rasyolar için null kullan. Sadece JSON döndür.
+`chart_data` kısmını mutlaka doldur, grafikler için kullanılacak.
 """
+
 
 
 def _clean_json(raw: str) -> str:
@@ -165,6 +193,46 @@ class AIService:
             model_name=self.model_name,
             generation_config=self._generation_config,
         )
+
+    def extract_company_metadata(
+        self,
+        file_path: str,
+        file_content: bytes,
+        media_type: str,
+        db,
+        user_id: Optional[int] = None,
+    ) -> dict:
+        """Dosyadaki rastgele bir şirketin bilgilerini çıkarır."""
+        start_time = time.time()
+        file_name = Path(file_path).name
+
+        try:
+            encoded = base64.b64encode(file_content).decode("utf-8")
+            model = self._get_model()
+
+            response = model.generate_content([
+                {"mime_type": media_type, "data": encoded},
+                COMPANY_METADATA_EXTRACTION_PROMPT,
+            ])
+
+            duration_ms = (time.time() - start_time) * 1000
+            result = json.loads(_clean_json(response.text))
+
+            usage = response.usage_metadata
+            log_ai_operation(
+                db=db, user_id=user_id, service="company_metadata_extraction",
+                model_used=self.model_name, duration_ms=duration_ms, success=True,
+                request_metadata={"file_name": file_name},
+            )
+            return result
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            log_ai_operation(
+                db=db, user_id=user_id, service="company_metadata_extraction",
+                model_used=self.model_name, duration_ms=duration_ms, success=False,
+                error_type=type(e).__name__, error_message=str(e),
+            )
+            raise
 
     def extract_financial_data_from_document(
         self,

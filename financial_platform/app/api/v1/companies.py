@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -11,8 +11,16 @@ from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
 from app.core.rbac import require_owner_or_admin
 from app.utils.logging import log_audit
 from app.utils.pagination import PaginationParams, paginate
+from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
+
+ALLOWED_MEDIA_TYPES = {
+    "application/pdf": "application/pdf",
+    "image/jpeg": "image/jpeg",
+    "image/png": "image/png",
+    "image/webp": "image/webp",
+}
 
 
 @router.get("", response_model=dict)
@@ -117,3 +125,33 @@ def delete_company(
               ip_address=request.client.host if request.client else None)
     db.delete(company)
     db.commit()
+
+
+@router.post("/extract-metadata", response_model=dict)
+async def extract_company_metadata(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Belgeden rastgele bir şirketin temel bilgilerini çıkarır."""
+    media_type = file.content_type
+    if media_type not in ALLOWED_MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail=f"Desteklenmeyen dosya tipi: {media_type}")
+
+    content = await file.read()
+    
+    from app.api.v1.financial import _check_and_increment_ai_quota
+    _check_and_increment_ai_quota(current_user, db)
+
+    try:
+        metadata = ai_service.extract_company_metadata(
+            file_path=file.filename,
+            file_content=content,
+            media_type=ALLOWED_MEDIA_TYPES[media_type],
+            db=db,
+            user_id=current_user.id,
+        )
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
