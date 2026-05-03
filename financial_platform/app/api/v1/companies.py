@@ -19,7 +19,7 @@ router = APIRouter(prefix="/companies", tags=["Companies"])
 def list_companies(
     page: int = 1,
     page_size: int = 20,
-    search: Optional[str] = Query(None, description="Şirket adı veya vergi numarasında arama"),
+    search: Optional[str] = Query(None, max_length=100, description="Şirket adı veya vergi numarasında arama"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict:

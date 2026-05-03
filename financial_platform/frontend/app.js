@@ -553,9 +553,17 @@ async function loadAllReports() {
                         onclick="downloadPptx(${r.id})">
                         <i data-lucide="presentation"></i>
                     </button>
+                    <button class="action-btn" title="Excel İndir"
+                        onclick="downloadExcel(${r.id})">
+                        <i data-lucide="file-spreadsheet"></i>
+                    </button>
                     <button class="action-btn" title="CSV İndir"
                         onclick="downloadCsv(${r.id})">
                         <i data-lucide="download"></i>
+                    </button>
+                    <button class="action-btn" title="Alanları Düzenle (T8)"
+                        onclick="openEditReportModal(${r.id})">
+                        <i data-lucide="edit-3"></i>
                     </button>
                     <button class="action-btn danger-btn" title="Raporu Sil"
                         onclick="deleteReport(${r.id})">
@@ -616,6 +624,139 @@ async function downloadCsv(reportId) {
     const res = await http(`/financial/reports/${reportId}/export/csv`);
     if (!res?.ok) { toast('İndirme başarısız.', 'error'); return; }
     downloadBlob(await res.blob(), `rapor_${reportId}.csv`);
+}
+
+async function downloadExcel(reportId) {
+    toast('Excel hazırlanıyor...', 'info');
+    const res = await http(`/financial/reports/${reportId}/export/excel`);
+    if (!res?.ok) { toast('İndirme başarısız.', 'error'); return; }
+    downloadBlob(await res.blob(), `rapor_${reportId}.xlsx`);
+}
+
+// ─── Rapor Düzenleme (T8) ──────────────────────────────────────────
+function switchEditTab(tab, btn) {
+    document.querySelectorAll('.edit-tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.edit-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`edit-tab-${tab}`).style.display = 'block';
+    btn.classList.add('active');
+}
+
+async function openEditReportModal(reportId) {
+    const data = await GET(`/financial/reports/${reportId}`);
+    if (!data) { toast('Rapor yüklenemedi.', 'error'); return; }
+
+    document.getElementById('editReportId').value = reportId;
+    document.getElementById('editReportTitle').textContent =
+        `— ${data.fiscal_year} ${data.period || ''}`;
+
+    const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val != null ? val : '';
+    };
+
+    // Balance sheet
+    set('ef_cash',         data.cash_and_equivalents);
+    set('ef_receivables',  data.accounts_receivable);
+    set('ef_inventory',    data.inventory);
+    set('ef_cur_assets',   data.total_current_assets);
+    set('ef_noncur_assets',data.total_non_current_assets);
+    set('ef_total_assets', data.total_assets);
+    set('ef_cur_liab',     data.total_current_liabilities);
+    set('ef_noncur_liab',  data.total_non_current_liabilities);
+    set('ef_total_liab',   data.total_liabilities);
+    set('ef_equity',       data.total_equity);
+
+    // Income statement
+    set('ef_revenue',      data.revenue);
+    set('ef_cogs',         data.cost_of_goods_sold);
+    set('ef_gross_profit', data.gross_profit);
+    set('ef_opex',         data.operating_expenses);
+    set('ef_ebitda',       data.ebitda);
+    set('ef_ebit',         data.ebit);
+    set('ef_interest',     data.interest_expense);
+    set('ef_ebt',          data.income_before_tax);
+    set('ef_tax',          data.income_tax);
+    set('ef_net_income',   data.net_income);
+
+    // Cash flow
+    set('ef_op_cf',   data.operating_cash_flow);
+    set('ef_inv_cf',  data.investing_cash_flow);
+    set('ef_fin_cf',  data.financing_cash_flow);
+    set('ef_free_cf', data.free_cash_flow);
+    set('ef_net_cash',data.net_change_in_cash);
+
+    // Notes
+    set('ef_notes', data.notes);
+    document.getElementById('ef_verified').checked = !!data.is_verified;
+
+    document.getElementById('editReportError').textContent = '';
+    // Reset to first tab
+    switchEditTab('balance', document.querySelector('.edit-tab-btn'));
+
+    document.getElementById('editReportModal').classList.add('active');
+    lucide.createIcons();
+}
+
+async function handleEditReport(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveReportBtn');
+    setLoading(btn, true);
+    document.getElementById('editReportError').textContent = '';
+
+    const reportId = document.getElementById('editReportId').value;
+    const getNum = id => {
+        const v = document.getElementById(id)?.value;
+        return v !== '' && v != null ? parseFloat(v) : null;
+    };
+
+    const body = {
+        cash_and_equivalents:        getNum('ef_cash'),
+        accounts_receivable:         getNum('ef_receivables'),
+        inventory:                   getNum('ef_inventory'),
+        total_current_assets:        getNum('ef_cur_assets'),
+        total_non_current_assets:    getNum('ef_noncur_assets'),
+        total_assets:                getNum('ef_total_assets'),
+        total_current_liabilities:   getNum('ef_cur_liab'),
+        total_non_current_liabilities:getNum('ef_noncur_liab'),
+        total_liabilities:           getNum('ef_total_liab'),
+        total_equity:                getNum('ef_equity'),
+        revenue:                     getNum('ef_revenue'),
+        cost_of_goods_sold:          getNum('ef_cogs'),
+        gross_profit:                getNum('ef_gross_profit'),
+        operating_expenses:          getNum('ef_opex'),
+        ebitda:                      getNum('ef_ebitda'),
+        ebit:                        getNum('ef_ebit'),
+        interest_expense:            getNum('ef_interest'),
+        income_before_tax:           getNum('ef_ebt'),
+        income_tax:                  getNum('ef_tax'),
+        net_income:                  getNum('ef_net_income'),
+        operating_cash_flow:         getNum('ef_op_cf'),
+        investing_cash_flow:         getNum('ef_inv_cf'),
+        financing_cash_flow:         getNum('ef_fin_cf'),
+        free_cash_flow:              getNum('ef_free_cf'),
+        net_change_in_cash:          getNum('ef_net_cash'),
+        notes:                       document.getElementById('ef_notes').value.trim() || null,
+        is_verified:                 document.getElementById('ef_verified').checked,
+    };
+
+    // Remove null fields
+    Object.keys(body).forEach(k => { if (body[k] === null) delete body[k]; });
+
+    const res = await http(`/financial/reports/${reportId}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+    });
+
+    setLoading(btn, false, '<i data-lucide="save"></i> Kaydet');
+
+    if (res?.ok) {
+        closeModal('editReportModal');
+        toast('Rapor başarıyla güncellendi.', 'success');
+        loadAllReports();
+    } else {
+        const err = await res?.json().catch(() => ({}));
+        document.getElementById('editReportError').textContent = err.detail || 'Güncelleme başarısız.';
+    }
 }
 
 function downloadBlob(blob, name) {

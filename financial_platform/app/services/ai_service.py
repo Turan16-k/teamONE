@@ -1,5 +1,5 @@
 """
-T3: OCR/AI Pipeline — Google Gemini 1.5 Pro multimodal API.
+T3: OCR/AI Pipeline — Google Gemini 2.5 Flash Lite multimodal API.
 PDF veya görsel yüklendiğinde yapılandırılmamış finansal tablodan
 yapılandırılmış form verisi üretilir.
 """
@@ -135,7 +135,7 @@ def _clean_json(raw: str) -> str:
 class AIService:
     def __init__(self) -> None:
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model_name = "gemini-1.5-pro"
+        self.model_name = "gemini-2.5-flash-lite"
         self._generation_config = GenerationConfig(
             temperature=0.1,       # finansal veri için düşük yaratıcılık
             top_p=0.95,

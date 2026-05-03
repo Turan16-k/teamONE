@@ -1,0 +1,66 @@
+2026-05-03 09:26:57,244 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-03 09:26:57,244 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
+2026-05-03 09:26:57,244 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,245 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("companies")
+2026-05-03 09:26:57,245 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("financial_reports")
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("subscription_packages")
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("user_subscriptions")
+2026-05-03 09:26:57,246 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("purchase_requests")
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("audit_logs")
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("ai_operation_logs")
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("notifications")
+2026-05-03 09:26:57,247 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-03 09:26:57,248 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:52262 - "GET /health HTTP/1.1" 200 OK
+2026-05-03 09:27:16,330 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-03 09:27:16,335 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.email = ? AND users.is_active = 1
+ LIMIT ? OFFSET ?
+2026-05-03 09:27:16,335 INFO sqlalchemy.engine.Engine [generated in 0.00033s] ('admin@platform.com', 1, 0)
+2026-05-03 09:27:16,689 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values, new_values, ip_address, user_agent, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-03 09:27:16,689 INFO sqlalchemy.engine.Engine [generated in 0.00032s] (1, 'LOGIN', 'User', 1, 'null', 'null', '127.0.0.1', None, '2026-05-03 06:27:16.687498')
+2026-05-03 09:27:16,694 INFO sqlalchemy.engine.Engine COMMIT
+2026-05-03 09:27:16,701 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-03 09:27:16,702 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = ?
+2026-05-03 09:27:16,702 INFO sqlalchemy.engine.Engine [generated in 0.00016s] (1,)
+2026-05-03 09:27:16,705 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:52266 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+2026-05-03 09:27:18,804 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-03 09:27:18,807 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = ? AND users.is_active = 1
+ LIMIT ? OFFSET ?
+2026-05-03 09:27:18,808 INFO sqlalchemy.engine.Engine [generated in 0.00068s] (1, 1, 0)
+2026-05-03 09:27:18,830 INFO sqlalchemy.engine.Engine SELECT financial_reports.id AS financial_reports_id, financial_reports.company_id AS financial_reports_company_id, financial_reports.report_type AS financial_reports_report_type, financial_reports.period AS financial_reports_period, financial_reports.fiscal_year AS financial_reports_fiscal_year, financial_reports.source_document AS financial_reports_source_document, financial_reports.is_ai_generated AS financial_reports_is_ai_generated, financial_reports.is_verified AS financial_reports_is_verified, financial_reports.notes AS financial_reports_notes, financial_reports.created_at AS financial_reports_created_at, financial_reports.updated_at AS financial_reports_updated_at, financial_reports.cash_and_equivalents AS financial_reports_cash_and_equivalents, financial_reports.short_term_investments AS financial_reports_short_term_investments, financial_reports.accounts_receivable AS financial_reports_accounts_receivable, financial_reports.inventory AS financial_reports_inventory, financial_reports.other_current_assets AS financial_reports_other_current_assets, financial_reports.total_current_assets AS financial_reports_total_current_assets, financial_reports.property_plant_equipment AS financial_reports_property_plant_equipment, financial_reports.intangible_assets AS financial_reports_intangible_assets, financial_reports.long_term_investments AS financial_reports_long_term_investments, financial_reports.total_non_current_assets AS financial_reports_total_non_current_assets, financial_reports.total_assets AS financial_reports_total_assets, financial_reports.accounts_payable AS financial_reports_accounts_payable, financial_reports.short_term_debt AS financial_reports_short_term_debt, financial_reports.current_portion_long_term_debt AS financial_reports_current_portion_long_term_debt, financial_reports.other_current_liabilities AS financial_reports_other_current_liabilities, financial_reports.total_current_liabilities AS financial_reports_total_current_liabilities, financial_reports.long_term_debt AS financial_reports_long_term_debt, financial_reports.deferred_tax_liabilities AS financial_reports_deferred_tax_liabilities, financial_reports.total_non_current_liabilities AS financial_reports_total_non_current_liabilities, financial_reports.total_liabilities AS financial_reports_total_liabilities, financial_reports.share_capital AS financial_reports_share_capital, financial_reports.retained_earnings AS financial_reports_retained_earnings, financial_reports.other_equity AS financial_reports_other_equity, financial_reports.total_equity AS financial_reports_total_equity, financial_reports.revenue AS financial_reports_revenue, financial_reports.cost_of_goods_sold AS financial_reports_cost_of_goods_sold, financial_reports.gross_profit AS financial_reports_gross_profit, financial_reports.operating_expenses AS financial_reports_operating_expenses, financial_reports.ebitda AS financial_reports_ebitda, financial_reports.ebit AS financial_reports_ebit, financial_reports.interest_expense AS financial_reports_interest_expense, financial_reports.income_before_tax AS financial_reports_income_before_tax, financial_reports.income_tax AS financial_reports_income_tax, financial_reports.net_income AS financial_reports_net_income, financial_reports.operating_cash_flow AS financial_reports_operating_cash_flow, financial_reports.investing_cash_flow AS financial_reports_investing_cash_flow, financial_reports.financing_cash_flow AS financial_reports_financing_cash_flow, financial_reports.free_cash_flow AS financial_reports_free_cash_flow, financial_reports.net_change_in_cash AS financial_reports_net_change_in_cash, financial_reports.ai_analysis AS financial_reports_ai_analysis, financial_reports.ai_ratios AS financial_reports_ai_ratios, companies_1.id AS companies_1_id, companies_1.name AS companies_1_name, companies_1.tax_id AS companies_1_tax_id, companies_1.sector AS companies_1_sector, companies_1.description AS companies_1_description, companies_1.owner_id AS companies_1_owner_id, companies_1.created_at AS companies_1_created_at, companies_1.updated_at AS companies_1_updated_at 
+FROM financial_reports LEFT OUTER JOIN companies AS companies_1 ON companies_1.id = financial_reports.company_id 
+WHERE financial_reports.id = ?
+ LIMIT ? OFFSET ?
+2026-05-03 09:27:18,830 INFO sqlalchemy.engine.Engine [generated in 0.00064s] (1, 1, 0)
+2026-05-03 09:27:18,838 INFO sqlalchemy.engine.Engine SELECT user_subscriptions.id AS user_subscriptions_id, user_subscriptions.user_id AS user_subscriptions_user_id, user_subscriptions.package_id AS user_subscriptions_package_id, user_subscriptions.status AS user_subscriptions_status, user_subscriptions.start_date AS user_subscriptions_start_date, user_subscriptions.end_date AS user_subscriptions_end_date, user_subscriptions.ai_calls_used AS user_subscriptions_ai_calls_used, user_subscriptions.reports_used AS user_subscriptions_reports_used, user_subscriptions.created_at AS user_subscriptions_created_at, user_subscriptions.updated_at AS user_subscriptions_updated_at 
+FROM user_subscriptions 
+WHERE ? = user_subscriptions.user_id
+2026-05-03 09:27:18,838 INFO sqlalchemy.engine.Engine [generated in 0.00046s] (1,)
+2026-05-03 09:27:18,843 INFO sqlalchemy.engine.Engine SELECT subscription_packages.id AS subscription_packages_id, subscription_packages.name AS subscription_packages_name, subscription_packages.description AS subscription_packages_description, subscription_packages.price AS subscription_packages_price, subscription_packages.duration_days AS subscription_packages_duration_days, subscription_packages.max_companies AS subscription_packages_max_companies, subscription_packages.max_reports_per_month AS subscription_packages_max_reports_per_month, subscription_packages.max_ai_calls_per_month AS subscription_packages_max_ai_calls_per_month, subscription_packages.features AS subscription_packages_features, subscription_packages.is_active AS subscription_packages_is_active, subscription_packages.created_at AS subscription_packages_created_at 
+FROM subscription_packages 
+WHERE subscription_packages.id = ?
+2026-05-03 09:27:18,843 INFO sqlalchemy.engine.Engine [generated in 0.00041s] (2,)
+2026-05-03 09:27:18,847 INFO sqlalchemy.engine.Engine UPDATE user_subscriptions SET ai_calls_used=?, updated_at=? WHERE user_subscriptions.id = ?
+2026-05-03 09:27:18,847 INFO sqlalchemy.engine.Engine [generated in 0.00047s] (1, '2026-05-03 06:27:18.847295', 1)
+2026-05-03 09:27:22,314 INFO sqlalchemy.engine.Engine INSERT INTO ai_operation_logs (user_id, service, model_used, prompt_tokens, completion_tokens, total_tokens, duration_ms, success, error_type, error_message, request_metadata, response_metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-03 09:27:22,317 INFO sqlalchemy.engine.Engine [generated in 0.00390s] (1, 'financial_analysis', 'gemini-2.5-flash-lite', 727, 378, 1105, 3450.1516819000244, 1, None, None, 'null', 'null', '2026-05-03 06:27:22.314248')
+2026-05-03 09:27:22,327 INFO sqlalchemy.engine.Engine INSERT INTO notifications (user_id, type, title, body, is_read, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+2026-05-03 09:27:22,328 INFO sqlalchemy.engine.Engine [generated in 0.00178s] (1, 'REPORT_READY', 'AI Analizi Tamamlandý', 'Test Sirketi AS için AI finansal analizi hazýr.', 0, '{"report_id": 1}', '2026-05-03 06:27:22.327287')
+2026-05-03 09:27:22,339 INFO sqlalchemy.engine.Engine UPDATE financial_reports SET is_ai_generated=?, updated_at=?, ai_ratios=? WHERE financial_reports.id = ?
+2026-05-03 09:27:22,340 INFO sqlalchemy.engine.Engine [generated in 0.00173s] (1, '2026-05-03 06:27:22.339158', '{"liquidity": {"current_ratio": null, "quick_ratio": null, "cash_ratio": null, "assessment": "Veri eksikli\\u011fi nedeniyle likidite durumu de\\u011 ... (944 characters truncated) ... lardaki verilerin eksiksiz olmas\\u0131 gerekmektedir.", "financial_score": 0, "risk_indicators": ["Eksik finansal veri"], "positive_indicators": []}', 1)
+2026-05-03 09:27:22,346 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:52268 - "POST /api/v1/financial/reports/1/analyze HTTP/1.1" 200 OK

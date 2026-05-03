@@ -987,3 +987,13 @@ body.light-mode .toast-info { background: rgba(255,255,255,.95); }
 
 /* ─── Premium Modal Icon ───────────────────────────────────────── */
 .premium-modal-header { color: var(--accent); }
+
+/* ─── Edit Report Tabs (T8) ─────────────────────────────────────── */
+.edit-tab-btn {
+    flex: 1; padding: 8px; border: none; border-radius: 8px;
+    background: none; color: var(--text-muted);
+    font-weight: 600; font-family: 'Inter', sans-serif;
+    cursor: pointer; font-size: .8rem; transition: var(--transition);
+}
+.edit-tab-btn.active { background: var(--primary); color: white; }
+.edit-tab-pane { animation: fadeIn .2s ease-out; }

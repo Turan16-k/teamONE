@@ -502,6 +502,116 @@
     </div>
 </div>
 
+<!-- Rapor Düzenle Modal (T8) -->
+<div id="editReportModal" class="modal" onclick="modalBackdropClose(event,'editReportModal')">
+    <div class="modal-content" style="max-width:680px;max-height:90vh;overflow-y:auto">
+        <div class="modal-header">
+            <h2><i data-lucide="edit-3" style="width:20px;vertical-align:middle;margin-right:8px"></i>Rapor Düzenle <span id="editReportTitle" style="font-size:.9rem;color:var(--text-muted)"></span></h2>
+            <button class="close-modal" onclick="closeModal('editReportModal')">&times;</button>
+        </div>
+        <form id="editReportForm" onsubmit="handleEditReport(event)">
+            <input type="hidden" id="editReportId">
+
+            <div class="edit-tabs" style="display:flex;gap:4px;background:var(--bg-dark);border-radius:10px;padding:4px;margin-bottom:1.5rem">
+                <button type="button" class="edit-tab-btn active" onclick="switchEditTab('balance',this)">Bilanço</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditTab('income',this)">Gelir Tablosu</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditTab('cashflow',this)">Nakit Akışı</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditTab('notes',this)">Notlar</button>
+            </div>
+
+            <!-- Balance Sheet -->
+            <div id="edit-tab-balance" class="edit-tab-pane">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Nakit ve Eşdeğerleri</label>
+                        <input type="number" step="0.01" id="ef_cash" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Alacaklar</label>
+                        <input type="number" step="0.01" id="ef_receivables" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Stoklar</label>
+                        <input type="number" step="0.01" id="ef_inventory" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam Dönen Varlık</label>
+                        <input type="number" step="0.01" id="ef_cur_assets" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam Duran Varlık</label>
+                        <input type="number" step="0.01" id="ef_noncur_assets" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam Varlık</label>
+                        <input type="number" step="0.01" id="ef_total_assets" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam K.V. Yükümlülük</label>
+                        <input type="number" step="0.01" id="ef_cur_liab" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam U.V. Yükümlülük</label>
+                        <input type="number" step="0.01" id="ef_noncur_liab" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam Yükümlülük</label>
+                        <input type="number" step="0.01" id="ef_total_liab" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Toplam Öz Kaynak</label>
+                        <input type="number" step="0.01" id="ef_equity" class="filter-select full-width" placeholder="0.00"></div>
+                </div>
+            </div>
+
+            <!-- Income Statement -->
+            <div id="edit-tab-income" class="edit-tab-pane" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Gelir (Ciro)</label>
+                        <input type="number" step="0.01" id="ef_revenue" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Satış Maliyeti</label>
+                        <input type="number" step="0.01" id="ef_cogs" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Brüt Kar</label>
+                        <input type="number" step="0.01" id="ef_gross_profit" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Faaliyet Giderleri</label>
+                        <input type="number" step="0.01" id="ef_opex" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>EBITDA</label>
+                        <input type="number" step="0.01" id="ef_ebitda" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>EBIT</label>
+                        <input type="number" step="0.01" id="ef_ebit" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Faiz Gideri</label>
+                        <input type="number" step="0.01" id="ef_interest" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Vergi Öncesi Kar</label>
+                        <input type="number" step="0.01" id="ef_ebt" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Vergi Gideri</label>
+                        <input type="number" step="0.01" id="ef_tax" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Net Kar</label>
+                        <input type="number" step="0.01" id="ef_net_income" class="filter-select full-width" placeholder="0.00"></div>
+                </div>
+            </div>
+
+            <!-- Cash Flow -->
+            <div id="edit-tab-cashflow" class="edit-tab-pane" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group"><label>Operasyonel Nakit Akışı</label>
+                        <input type="number" step="0.01" id="ef_op_cf" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Yatırım Nakit Akışı</label>
+                        <input type="number" step="0.01" id="ef_inv_cf" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Finansman Nakit Akışı</label>
+                        <input type="number" step="0.01" id="ef_fin_cf" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Serbest Nakit Akışı</label>
+                        <input type="number" step="0.01" id="ef_free_cf" class="filter-select full-width" placeholder="0.00"></div>
+                    <div class="form-group"><label>Net Nakit Değişimi</label>
+                        <input type="number" step="0.01" id="ef_net_cash" class="filter-select full-width" placeholder="0.00"></div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div id="edit-tab-notes" class="edit-tab-pane" style="display:none">
+                <div class="form-group">
+                    <label>Notlar</label>
+                    <textarea id="ef_notes" class="filter-select full-width" rows="5" placeholder="Rapor hakkında ek notlar..."></textarea>
+                </div>
+                <div class="form-group" style="margin-top:1rem">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" id="ef_verified" style="width:16px;height:16px">
+                        Manuel olarak doğrulandı işaretle
+                    </label>
+                </div>
+            </div>
+
+            <p id="editReportError" class="auth-error" style="margin-top:.5rem"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('editReportModal')">İptal</button>
+                <button type="submit" class="btn-primary" id="saveReportBtn">
+                    <i data-lucide="save"></i> Kaydet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Premium Modal (T6/T7) -->
 <div id="premiumModal" class="modal" onclick="modalBackdropClose(event,'premiumModal')">
     <div class="modal-content" style="max-width:640px">

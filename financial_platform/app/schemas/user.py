@@ -1,7 +1,20 @@
+import re
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 from app.models.user import UserRole
+
+
+def _validate_password_strength(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError("Şifre en az 8 karakter olmalıdır.")
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Şifre en az bir büyük harf içermelidir.")
+    if not re.search(r"[0-9]", v):
+        raise ValueError("Şifre en az bir rakam içermelidir.")
+    if not re.search(r"[^A-Za-z0-9]", v):
+        raise ValueError("Şifre en az bir özel karakter içermelidir (!@#$%^ vb.).")
+    return v
 
 
 class UserCreate(BaseModel):
@@ -9,12 +22,20 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
 
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Ad soyad en az 2 karakter olmalıdır.")
+        if len(v) > 150:
+            raise ValueError("Ad soyad 150 karakteri geçemez.")
+        return v
+
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Şifre en az 8 karakter olmalıdır.")
-        return v
+        return _validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -59,6 +80,4 @@ class ChangePasswordRequest(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Yeni şifre en az 8 karakter olmalıdır.")
-        return v
+        return _validate_password_strength(v)
