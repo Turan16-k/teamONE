@@ -98,6 +98,13 @@ class FinancialReport(Base):
     ai_analysis = Column(JSON, nullable=True)
     ai_ratios = Column(JSON, nullable=True)
 
+    # --- EK VERİ ALANLARI (T4.3) ---
+    banks_data = Column(JSON, nullable=True)        # Banka bazlı bakiye ve kredi limiti ozeti
+    collections_data = Column(JSON, nullable=True)  # Bekleyen ve yapılan tahsilatlar
+    debts_credits_data = Column(JSON, nullable=True)# Borc / Alacak ozeti ve vadeler
+    projects_data = Column(JSON, nullable=True)     # Devam eden ve biten isler/projeler
+    activity_conditions = Column(Text, nullable=True)# Alis-satis kosulları
+
     company = relationship("Company", back_populates="financial_reports")
 
     __table_args__ = (

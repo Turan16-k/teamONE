@@ -113,11 +113,21 @@ def log_ai_operation(
 def log_exception(exc: Exception, context: Optional[dict] = None) -> str:
     """Stack trace'i logla, kullanıcıya dönecek temiz mesajı üret."""
     tb = traceback.format_exc()
+    
+    # Non-serializable nesneleri (örn: SQLAlchemy modelleri) stringe çevirerek PydanticSerializationError önle.
+    safe_context = {}
+    if context:
+        for k, v in context.items():
+            if hasattr(v, "__dict__") or not isinstance(v, (str, int, float, bool, list, dict, type(None))):
+                safe_context[k] = str(v)
+            else:
+                safe_context[k] = v
+
     logger.error(
         "unhandled_exception",
         exc_type=type(exc).__name__,
         exc_msg=str(exc),
         stack_trace=tb,
-        context=context or {},
+        context=safe_context,
     )
     return "Bir hata oluştu. Lütfen daha sonra tekrar deneyin."

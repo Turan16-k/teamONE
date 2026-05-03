@@ -16,7 +16,7 @@ from app.config import settings
 from app.utils.logging import log_ai_operation
 
 FINANCIAL_EXTRACTION_PROMPT = """
-Sen bir finansal analiz uzmanısın. Sana verilen belge (bilanço, gelir tablosu veya nakit akışı tablosu)
+Sen bir finansal analiz uzmanısın. Sana verilen belge (bilanço, gelir tablosu, nakit akışı veya genel mali durum belgesi)
 içindeki tüm finansal verileri yapılandırılmış JSON formatında çıkar.
 
 ÇIKTI FORMATI (sadece JSON, başka bir şey yazma):
@@ -70,6 +70,22 @@ içindeki tüm finansal verileri yapılandırılmış JSON formatında çıkar.
     "free_cash_flow": <sayı veya null>,
     "net_change_in_cash": <sayı veya null>
   },
+  "banks_data": [
+    {"bank_name": "...", "limit": <sayı>, "usage": <sayı>, "balance": <sayı>}
+  ],
+  "collections_data": {
+    "pending": [{"customer": "...", "amount": <sayı>, "due_date": "..."}],
+    "completed": [{"customer": "...", "amount": <sayı>, "date": "..."}]
+  },
+  "debts_credits_data": {
+    "total_debt": <sayı>,
+    "total_credit": <sayı>,
+    "details": "..."
+  },
+  "projects_data": [
+    {"project_name": "...", "status": "ongoing | completed", "progress_pct": <sayı>}
+  ],
+  "activity_conditions": "...",
   "confidence_score": <0.0-1.0 arası güven skoru>,
   "notes": "<çıkarılamayan veya belirsiz alanlar>"
 }
@@ -114,6 +130,8 @@ Aşağıdaki analizleri JSON formatında üret (sadece JSON):
     "inventory_turnover": <satılan malın maliyeti / stok>,
     "assessment": "<etkinlik değerlendirmesi>"
   }},
+  "bank_assessment": "<banka limit ve kullanım durumu yorumu>",
+  "collection_assessment": "<tahsilat performansı yorumu>",
   "overall_assessment": "<genel değerlendirme>",
   "financial_score": <1-100 arası toplam sağlık skoru int>,
   "risk_indicators": ["<risk 1>", "<risk 2>"],
@@ -135,7 +153,7 @@ def _clean_json(raw: str) -> str:
 class AIService:
     def __init__(self) -> None:
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model_name = "gemini-1.5-pro"
+        self.model_name = "gemini-2.5-flash"
         self._generation_config = GenerationConfig(
             temperature=0.1,       # finansal veri için düşük yaratıcılık
             top_p=0.95,

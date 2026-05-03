@@ -212,6 +212,13 @@ def trigger_ai_analysis(
             "operating_cash_flow": str(report.operating_cash_flow) if report.operating_cash_flow else None,
             "free_cash_flow": str(report.free_cash_flow) if report.free_cash_flow else None,
         },
+        "extra_info": {
+            "banks_data": report.banks_data,
+            "collections_data": report.collections_data,
+            "debts_credits_data": report.debts_credits_data,
+            "projects_data": report.projects_data,
+            "activity_conditions": report.activity_conditions,
+        }
     }
 
     _check_and_increment_ai_quota(current_user, db)

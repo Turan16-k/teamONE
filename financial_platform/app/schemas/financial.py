@@ -57,6 +57,13 @@ class FinancialReportCreate(BaseModel):
     free_cash_flow: Optional[Decimal] = None
     net_change_in_cash: Optional[Decimal] = None
 
+    # Extra Data Fields (T4.3)
+    banks_data: Optional[Any] = None
+    collections_data: Optional[Any] = None
+    debts_credits_data: Optional[Any] = None
+    projects_data: Optional[Any] = None
+    activity_conditions: Optional[str] = None
+
 
 class FinancialReportUpdate(BaseModel):
     """T3: Çift yönlü veri bağlama - AI doldurdu, kullanıcı düzenliyor."""
@@ -102,6 +109,13 @@ class FinancialReportUpdate(BaseModel):
     financing_cash_flow: Optional[Decimal] = None
     free_cash_flow: Optional[Decimal] = None
     net_change_in_cash: Optional[Decimal] = None
+
+    # Extra Data Fields
+    banks_data: Optional[Any] = None
+    collections_data: Optional[Any] = None
+    debts_credits_data: Optional[Any] = None
+    projects_data: Optional[Any] = None
+    activity_conditions: Optional[str] = None
 
 
 class FinancialReportResponse(FinancialReportCreate):

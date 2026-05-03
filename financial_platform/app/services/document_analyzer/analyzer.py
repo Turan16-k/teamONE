@@ -36,7 +36,7 @@ Her zaman Türkçe yanıt ver."""
 class GeminiAnalyzer:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel("gemini-1.5-pro")
+        self._model = genai.GenerativeModel("gemini-2.5-flash")
 
     # ── public ────────────────────────────────────────────────────────────
 
