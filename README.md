@@ -166,4 +166,4 @@ Testleri çalıştırmak için `pytest` kullanabilirsiniz:
 pytest tests/
 ```
 
-## 📄 Lisans
+## 📄 Lisans: kullanım ve ticaret hakları tarafıma aittir
